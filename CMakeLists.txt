@@ -50,7 +50,7 @@ find_package(catkin REQUIRED
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  AccInfo.msg
+  ColorInfo.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -88,12 +88,10 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-# #   cfg/DynReconf1.cfg
-#   config/line_hsv.cfg
-#   config/lane_hsv.cfg
-#   config/lane_hsv_2.cfg
-# )
+generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+  config/color_hsv.cfg
+)
 
 ###################################
 ## catkin specific configuration ##

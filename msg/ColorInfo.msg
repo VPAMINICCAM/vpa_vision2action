@@ -1,0 +1,4 @@
+uint16 dis2car
+uint16 dis2stop
+uint16 lane_yellow_center
+uint16 lane_white_center
