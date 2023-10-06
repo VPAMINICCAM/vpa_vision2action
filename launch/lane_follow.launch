@@ -1,0 +1,19 @@
+<launch>
+    <arg name="robot_name" default=""/>
+     <group if="$(eval robot_name == '')">
+        <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
+        <include file="$(find vpa_vision2action)/launch/color_landmark_detector.launch"/>
+        <node pkg="vpa_vision2action" name="lane_control" type="lane_follow.py" output="screen">
+            <remap from="cmd_vel_lf" to="cmd_vel"/>
+        </node>
+     </group>
+     <group unless="$(eval robot_name == '')">
+        <group ns="$(arg robot_name)">
+            <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
+            <include file="$(find vpa_vision2action)/launch/color_landmark_detector.launch"/>
+            <node pkg="vpa_vision2action" name="lane_control" type="lane_follow.py" output="screen">
+               <remap from="cmd_vel_lf" to="cmd_vel"/>
+            </node>
+        </group>
+     </group>
+</launch>

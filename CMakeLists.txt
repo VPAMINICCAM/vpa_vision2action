@@ -91,6 +91,7 @@ generate_messages(
 generate_dynamic_reconfigure_options(
 #   cfg/DynReconf1.cfg
   config/color_hsv.cfg
+  config/lane_follow_pi.cfg
 )
 
 ###################################
