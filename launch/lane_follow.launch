@@ -1,19 +1,92 @@
 <launch>
     <arg name="robot_name" default=""/>
-     <group if="$(eval robot_name == '')">
-        <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
-        <include file="$(find vpa_vision2action)/launch/color_landmark_detector.launch"/>
-        <node pkg="vpa_vision2action" name="lane_control" type="lane_follow.py" output="screen">
-            <remap from="cmd_vel_lf" to="cmd_vel"/>
+    <arg name="test_mode" default="false"/> 
+    <arg name="acc_on" default="true"/>
+    <arg name="publish_mask" default="false"/>
+    <group if="$(eval robot_name == '')">
+        <node pkg="vpa_vision2action" name="lane_operation" type="landmark2twist.py" output="screen">
+            <!-- lane detecting - yellow lane -->
+            <param name="h_lower_1"            value="80"/>
+            <param name="s_lower_1"            value="80"/>
+            <param name="v_lower_1"            value="150"/>
+            <param name="h_upper_1"            value="100"/>
+            <param name="s_upper_1"            value="255"/>
+            <param name="v_upper_1"            value="255"/>
+            <!-- lane detecting - white lane -->
+            <param name="h_lower_2"            value="30"/>
+            <param name="s_lower_2"            value="0"/>
+            <param name="v_lower_2"            value="200"/>
+            <param name="h_upper_2"            value="100"/>
+            <param name="s_upper_2"            value="50"/>
+            <param name="v_upper_2"            value="255"/>
+            <!-- stop line (red)-->
+            <param name="h_lower_s"            value="110"/>
+            <param name="s_lower_s"            value="110"/>
+            <param name="v_lower_s"            value="200"/>
+            <param name="h_upper_s"            value="150"/>
+            <param name="s_upper_s"            value="180"/>
+            <param name="v_upper_s"            value="255"/>
+            <!-- front car (something)-->
+            <param name="h_lower_a"            value="5"/>
+            <param name="s_lower_a"            value="130"/>
+            <param name="v_lower_a"            value="100"/>
+            <param name="h_upper_a"            value="25"/>
+            <param name="s_upper_a"            value="200"/>
+            <param name="v_upper_a"            value="200"/>
+            <param name="test_mode"            value="$(arg test_mode)"/>  
+            <param name="acc_on"               value="$(arg acc_on)"/>  
+            <param name="publish_mask"         value="$(arg publish_mask)"/>
         </node>
-     </group>
-     <group unless="$(eval robot_name == '')">
-        <group ns="$(arg robot_name)">
-            <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
-            <include file="$(find vpa_vision2action)/launch/color_landmark_detector.launch"/>
-            <node pkg="vpa_vision2action" name="lane_control" type="lane_follow.py" output="screen">
-               <remap from="cmd_vel_lf" to="cmd_vel"/>
-            </node>
+        <group if="$(arg publish_mask)">
+            <node name="republish_mask_1" pkg="image_transport" type="republish" args="raw in:=mask_1_image compressed out:=mask_1_image" />
+            <node name="republish_mask_2" pkg="image_transport" type="republish" args="raw in:=mask_2_image compressed out:=mask_2_image" /> 
+            <node name="republish_mask_3" pkg="image_transport" type="republish" args="raw in:=mask_acc_image compressed out:=mask_acc_image" /> 
+            <node name="republish_mask_4" pkg="image_transport" type="republish" args="raw in:=mask_stop_image compressed out:=mask_stop_image" />         
         </group>
-     </group>
+        <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
+        <include file="$(find vpa_db19interface)/launch/base_control.launch"/>
+        <node name="republish_result" pkg="image_transport" type="republish" args="raw in:=result_image compressed out:=result_image"/>
+    </group>
+    <!-- multi-robot operation -->
+    <group unless="$(eval robot_name == '')">
+        <group ns="$(arg robot_name)">
+            <node pkg="vpa_vision2action" name="lane_operation" type="landmark2twist.py" output="screen">
+            <!-- lane detecting - yellow lane -->
+            <param name="h_lower_1"            value="80"/>
+            <param name="s_lower_1"            value="80"/>
+            <param name="v_lower_1"            value="150"/>
+            <param name="h_upper_1"            value="100"/>
+            <param name="s_upper_1"            value="255"/>
+            <param name="v_upper_1"            value="255"/>
+            <!-- lane detecting - white lane -->
+            <param name="h_lower_2"            value="30"/>
+            <param name="s_lower_2"            value="0"/>
+            <param name="v_lower_2"            value="200"/>
+            <param name="h_upper_2"            value="100"/>
+            <param name="s_upper_2"            value="50"/>
+            <param name="v_upper_2"            value="255"/>
+            <!-- stop line (red)-->
+            <param name="h_lower_s"            value="110"/>
+            <param name="s_lower_s"            value="110"/>
+            <param name="v_lower_s"            value="200"/>
+            <param name="h_upper_s"            value="150"/>
+            <param name="s_upper_s"            value="180"/>
+            <param name="v_upper_s"            value="255"/>
+            <!-- front car (something)-->
+            <param name="h_lower_a"            value="5"/>
+            <param name="s_lower_a"            value="130"/>
+            <param name="v_lower_a"            value="100"/>
+            <param name="h_upper_a"            value="25"/>
+            <param name="s_upper_a"            value="200"/>
+            <param name="v_upper_a"            value="200"/>
+            <param name="test_mode"            value="$(arg test_mode)"/>  
+            <param name="acc_on"               value="$(arg acc_on)"/> 
+            <param name="publish_mask"         value="false"/> 
+            <!-- mask publish banned in multi-robot -->
+            </node>
+            <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
+            <include file="$(find vpa_db19interface)/launch/base_control.launch"/>
+            <node name="republish_result" pkg="image_transport" type="republish" args="raw in:=result_image compressed out:=result_image" />
+        </group>
+    </group>
 </launch>
