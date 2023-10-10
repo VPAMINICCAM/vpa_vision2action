@@ -79,7 +79,7 @@ class lane_follow:
         
         if self.acc_mode:
             if self.test_mode:
-                self.mask_pub_acc = rospy.Publisher("acc_mask_image", Image, queue_size=1)
+                self.mask_pub_acc = rospy.Publisher("mask_acc_image", Image, queue_size=1)
                 
             self.acc_dis = 0
             self.acc_ref = 60
