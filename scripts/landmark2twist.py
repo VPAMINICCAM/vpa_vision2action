@@ -17,8 +17,8 @@ class lane_follow:
         #define topic publisher and subscriber
         self.bridge = CvBridge()
         
-        self.test_mode  = bool(rospy.get_param('~test_mode',False))
-        self.publish_mask = bool(rospy.get_param('~publish_mask',False))
+        self.test_mode  = bool(rospy.get_param('~test_mode',True))
+        self.publish_mask = bool(rospy.get_param('~publish_mask',True))
         self.acc_mode   = bool(rospy.get_param('~acc_on',True))
         self.pub_cmd = rospy.Publisher('cmd_vel',Twist,queue_size=1)
         
@@ -76,6 +76,8 @@ class lane_follow:
         self.v_upper_s = int(rospy.get_param('~v_upper_s',255))          
 
         self.stopline_dis  = 0
+
+        self._intersection_flag = False
         
         if self.acc_mode:
             if self.test_mode:
@@ -165,34 +167,46 @@ class lane_follow:
         
         if self.test_mode:
             # it print the hsv value of the center point in this image
-            cv2.circle(res, (width_half,height_half), 5, (0,0,255), 1)
-            cv2.line(res,(width_half-10, height_half), (width_half +10,height_half), (0,0,255), 1)
-            cv2.line(res,(width_half, height_half-10), (width_half, height_half+10), (0,0,255), 1)
-            rospy.loginfo("Point HSV Value is %s"%hsv_image[height_half,width_half])            
+            # play around here to move the cursor
+            width_select    = width_half + 80
+            height_select   = height_half - 20
+            cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
+            cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
+            cv2.line(res,(width_select , height_select-10), (width_select , height_select+10), (0,0,255), 1)
+            rospy.loginfo("Point HSV Value is %s"%hsv_image[height_select,width_select ])            
         else:
-            self.lane_center_1 = self._search_yellow_line(mask1,height_half)
-            cv2.circle(res, (self.lane_center_1,height_half), 5, (255,0,0), 5)
+            if not self._intersection_flag:
+                self.lane_center_1 = self._search_yellow_line(mask1,height_half)
+                cv2.circle(res, (self.lane_center_1,height_half), 5, (255,0,0), 5)
             
-            # By using the yellow line (center line of lane) information,
-            # Some background information will be removed and the car knows which lane it is on
-            if self.start_flag:
-                if self.lane_center_1 > width_half:
-                    self.yellowleft = False
-                    rospy.loginfo('Initialized: Yellow Line on the right')
-                else:
-                    rospy.loginfo('Initialized: Yellow Line on the left')
-                self.start_flag = False
+                # By using the yellow line (center line of lane) information,
+                # Some background information will be removed and the car knows which lane it is on
+                if self.start_flag:
+                    if self.lane_center_1 > width_half:
+                        self.yellowleft = False
+                        rospy.loginfo('Initialized: Yellow Line on the right')
+                    else:
+                        rospy.loginfo('Initialized: Yellow Line on the left')
+                    self.start_flag = False
             
-            self.lane_center_2  = self._search_white_line(mask2,height_half,self.lane_center_1,self.yellowleft)
-            self.center_point   = self._determine_lanecenter(self.lane_center_1,self.lane_center_2,width_half*2)
+                self.lane_center_2  = self._search_white_line(mask2,height_half,self.lane_center_1,self.yellowleft)
+                self.center_point   = self._determine_lanecenter(self.lane_center_1,self.lane_center_2,width_half*2)
                     
             # getting distance to stop line
             
-            point = np.nonzero(mask_stop[:,width_half])
-            if len(point[0]) == 0:
-                self.stopline_dis = 0
+                point = np.nonzero(mask_stop[:,width_half])
+                if len(point[0]) == 0:
+                    self.stopline_dis = 0
+                else:
+                    self.stopline_dis = int(np.mean(point))
+
+                if self.stopline_dis < 50:
+                    # Approaching the intersection
+                    # Switch to line following
+                    self._intersection_flag = True
             else:
-                self.stopline_dis = int(np.mean(point))
+                self.center_point = 0
+                # stop at the stopline for now for a quick test with this commit
             
             # ACC function starts here
             if self.acc_mode:
