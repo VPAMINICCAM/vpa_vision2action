@@ -17,7 +17,7 @@ class lane_follow:
         #define topic publisher and subscriber
         self.bridge = CvBridge()
         
-        self.test_mode  = bool(rospy.get_param('~test_mode',True))
+        self.test_mode  = bool(rospy.get_param('~test_mode',False))
         self.publish_mask = bool(rospy.get_param('~publish_mask',True))
         self.acc_mode   = bool(rospy.get_param('~acc_on',True))
         self.pub_cmd = rospy.Publisher('cmd_vel',Twist,queue_size=1)
@@ -192,15 +192,14 @@ class lane_follow:
                 self.lane_center_2  = self._search_white_line(mask2,height_half,self.lane_center_1,self.yellowleft)
                 self.center_point   = self._determine_lanecenter(self.lane_center_1,self.lane_center_2,width_half*2)
                     
-            # getting distance to stop line
-            
+            # getting distance to stop line    
                 point = np.nonzero(mask_stop[:,width_half])
                 if len(point[0]) == 0:
                     self.stopline_dis = 0
                 else:
                     self.stopline_dis = int(np.mean(point))
 
-                if self.stopline_dis < 50:
+                if self.stopline_dis >100:
                     # Approaching the intersection
                     # Switch to line following
                     self._intersection_flag = True
