@@ -84,8 +84,8 @@
             <param name="publish_mask"         value="false"/> 
             <!-- mask publish banned in multi-robot -->
             </node>
-            <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
-            <include file="$(find vpa_db19interface)/launch/base_control.launch"/>
+                <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
+                <include file="$(find vpa_db19interface)/launch/base_control.launch"/>
             <node name="republish_result" pkg="image_transport" type="republish" args="raw in:=result_image compressed out:=result_image" />
         </group>
     </group>

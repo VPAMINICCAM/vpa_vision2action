@@ -7,20 +7,20 @@ from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 import numpy as np
 from geometry_msgs.msg import Twist
-from vpa_vision2action.cfg import color_hsvConfig,lane_follow_piConfig
+from vpa_vision2action.cfg import color_hsvConfig
 from dynamic_reconfigure.server import Server
 from lane_follow_controller import lf_pi_control
 from acc_controller import acc_pi_control
-
+from vpa_vision2action.srv import AssignTask,AssignTaskRequest,AssignTaskResponse
 class lane_follow:
     def __init__(self):    
         #define topic publisher and subscriber
-        self.bridge = CvBridge()  
-        self.test_mode  = bool(rospy.get_param('~test_mode',False))
-        self.publish_mask = bool(rospy.get_param('~publish_mask',True))
+        self.bridge         = CvBridge()  
+        self.test_mode      = bool(rospy.get_param('~test_mode',False))
+        self.publish_mask   = bool(rospy.get_param('~publish_mask',True))
         self.acc_mode   = bool(rospy.get_param('~acc_on',True))
-        self.pub_cmd = rospy.Publisher('cmd_vel',Twist,queue_size=1)
-        
+        self.pub_cmd    = rospy.Publisher('cmd_vel',Twist,queue_size=1)
+        self.robot_name = rospy.get_param('~robot_name','vivian')
         self.start_flag = True
         self.yellowleft = True
         
@@ -88,13 +88,24 @@ class lane_follow:
         self.s_lower_e = 50
         self.v_lower_e = 140
         
-        self.h_upper_e = 80
-        self.s_upper_e = 100
+        self.h_upper_e = 90
+        self.s_upper_e = 130
         self.v_upper_e = 255
         
-        self._next_action = 0
-        # fix to right turn now for other subfunction debug
-        
+        rospy.loginfo("waiting for task server")
+        rospy.wait_for_service("/AssignTask")
+        self._pause_flag = False
+        self._task_proxy = rospy.ServiceProxy("/AssignTask",AssignTask)
+        resp = self._task_proxy(self.robot_name,0)
+        self._action_list = resp.action_list
+        if len(self._action_list) == 0:
+            self._next_action = -1
+            rospy.loginfo('No task assigned for %s ',self.robot_name)
+        else:
+            self._next_action = self._action_list[0]
+            rospy.loginfo('Task action list:%s ',str(self._action_list))
+        self._action_index = 0
+        self._task_index   = 0
         self.stopline_dis  = 0
 
         self._intersection_flag = False
@@ -191,8 +202,8 @@ class lane_follow:
         if self.test_mode:
             # it print the hsv value of the center point in this image
             # play around here to move the cursor
-            width_select    = width_half + 18
-            height_select   = height_half + 50
+            width_select    = width_half 
+            height_select   = height_half - 20
             cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
             cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
             cv2.line(res,(width_select , height_select-10), (width_select , height_select+10), (0,0,255), 1)
@@ -227,33 +238,47 @@ class lane_follow:
                     # Approaching the intersection
                     # Switch to line following
                     self._intersection_flag = True
-                    # print('Into an intersection')
+                    if self._next_action == -1:
+                        self._pause_flag = True
+                    else:
+                        print('Intersection action:',self._next_action)
             else:
                 # now chose another target
-                lane_lower = np.array([self.h_lower_g[self._next_action],self.s_lower_g[self._next_action],self.v_lower_g[self._next_action]])
-                lane_upper = np.array([self.h_upper_g[self._next_action],self.s_upper_g[self._next_action],self.v_upper_g[self._next_action]])
-                
-                mask_guide  = cv2.inRange(hsv_image,lane_lower,lane_upper)
-                kernel      = np.ones((9,9),np.uint8)
-                mask_guide  = cv2.morphologyEx(mask_guide,cv2.MORPH_CLOSE,kernel)               
-                
-                self.center_point = self._search_guide_line(mask_guide,height_half)
-                
-                # checking the exit of intersection
-                exit_lower = np.array([self.h_lower_e,self.s_lower_e,self.v_lower_e])
-                exit_upper = np.array([self.h_upper_e,self.s_upper_e,self.v_upper_e])
-                
-                mask_exit   = cv2.inRange(hsv_image,exit_lower,exit_upper)
-                point = np.nonzero(mask_exit[height_half:2*height_half,width_half])
-                if len(point[0]) == 0:
-                    exit_dis = 0
+                if not self._action_list == -1:
+                    lane_lower = np.array([self.h_lower_g[self._next_action],self.s_lower_g[self._next_action],self.v_lower_g[self._next_action]])
+                    lane_upper = np.array([self.h_upper_g[self._next_action],self.s_upper_g[self._next_action],self.v_upper_g[self._next_action]])
+                    
+                    mask_guide  = cv2.inRange(hsv_image,lane_lower,lane_upper)
+                    kernel      = np.ones((9,9),np.uint8)
+                    mask_guide  = cv2.morphologyEx(mask_guide,cv2.MORPH_CLOSE,kernel)               
+                    
+                    self.center_point = self._search_guide_line(mask_guide,height_half)
+                    
+                    # checking the exit of intersection
+                    exit_lower = np.array([self.h_lower_e,self.s_lower_e,self.v_lower_e])
+                    exit_upper = np.array([self.h_upper_e,self.s_upper_e,self.v_upper_e])
+                    
+                    mask_exit   = cv2.inRange(hsv_image,exit_lower,exit_upper)
+                    point = np.nonzero(mask_exit[height_half:2*height_half,width_half])
+                    if len(point[0]) == 0:
+                        exit_dis = 0
+                    else:
+                        exit_dis = int(np.mean(point))
+                    # print(exit_dis)
+                    # print(point[0])
+                    if exit_dis > 15 and len(point[0]) > 5:
+                        self._intersection_flag = False
+                        self._action_index += 1
+                        print('next action order:',str(self._action_index))
+                        if self._action_index == len(self._action_list):
+                            # no more action needed
+                            self._next_action = -1
+                            self._task_index  += 1
+                        else:
+                            self._next_action = self._action_list[self._action_index]
+                        #pass
                 else:
-                    exit_dis = int(np.mean(point))
-                print(exit_dis)
-                print(point[0])
-                if exit_dis > 15 and len(point[0]) > 5:
-                    self._intersection_flag = False      
-                    #pass
+                    self._pause_flag = True
                 
             # ACC function starts here
             if self.acc_mode:
@@ -288,12 +313,13 @@ class lane_follow:
                     [v_factor,self.err_int_acc] = acc_pi_control(self.acc_ref,self.acc_dis,self.err_int_acc,0)
                 else:
                     v_factor = 1
-                _twist2publish.linear.x = v_x * v_factor
+                _twist2publish.linear.x = v_x * v_factor 
                 _twist2publish.angular.z = w_z * v_factor
-                self.pub_cmd.publish(_twist2publish)
-            # else:
-            #     _twist2publish = Twist()
-            #     self.pub_cmd.publish(_twist2publish)
+                if not self._pause_flag:
+                    self.pub_cmd.publish(_twist2publish)
+                else:
+                    _twist2publish = Twist()
+                    self.pub_cmd.publish(_twist2publish)
                 
             self.center_point = width_half 
             
