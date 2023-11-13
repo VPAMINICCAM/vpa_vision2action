@@ -12,6 +12,7 @@ from dynamic_reconfigure.server import Server
 from lane_follow_controller import lf_pi_control
 from acc_controller import acc_pi_control
 from vpa_vision2action.srv import AssignTask,AssignTaskRequest,AssignTaskResponse
+from local_map import local_mapper
 class lane_follow:
     def __init__(self):    
         #define topic publisher and subscriber
@@ -53,9 +54,9 @@ class lane_follow:
         
         self._err_int_lf = 0
         
-        self.lane_center_1 = 0
-        self.lane_center_2 = 0   
-        self.center_point = 0
+        self.lane_center_1  = 0
+        self.lane_center_2  = 0   
+        self.center_point   = 0
         # acc
         self.h_lower_a = int(rospy.get_param('~h_lower_a',5))
         self.s_lower_a = int(rospy.get_param('~s_lower_a',130))
@@ -75,9 +76,9 @@ class lane_follow:
         self.v_upper_s = int(rospy.get_param('~v_upper_s',235))          
 
         # guide line
-        self.h_lower_g = [5,    150,    10] # through, left , right
+        self.h_lower_g = [5,    130,    10] # through, left , right
         self.s_lower_g = [80,   40,     20]
-        self.v_lower_g = [160,  135,    190]
+        self.v_lower_g = [160,  105,    190]
         
         self.h_upper_g = [30,   170,    35]
         self.s_upper_g = [105,   75,     65]
@@ -97,18 +98,25 @@ class lane_follow:
         self._pause_flag = False
         self._task_proxy = rospy.ServiceProxy("/AssignTask",AssignTask)
         resp = self._task_proxy(self.robot_name,0)
-        self._action_list = resp.action_list
-        if len(self._action_list) == 0:
+        self._node_list = resp.node_list
+        if len(self._node_list) == 0:
             self._next_action = -1
             rospy.loginfo('No task assigned for %s ',self.robot_name)
         else:
-            self._next_action = self._action_list[0]
-            rospy.loginfo('Task action list:%s ',str(self._action_list))
-        self._action_index = 0
+            self._last_node     = self._node_list[0]
+            self._current_node  = self._node_list[1]
+            self._next_node     = self._node_list[2]
+            self._next_action = local_mapper(self._last_node,self._current_node,self._next_node)
+            rospy.loginfo('Node list:%s ',str(self._node_list))
+        self._node_index   = 2
         self._task_index   = 0
+        
         self.stopline_dis  = 0
-
         self._intersection_flag = False
+        
+        #debug
+        # self._intersection_flag = True
+        # self._next_action = 0
         
         if self.acc_mode:
             if self.test_mode:
@@ -202,7 +210,7 @@ class lane_follow:
         if self.test_mode:
             # it print the hsv value of the center point in this image
             # play around here to move the cursor
-            width_select    = width_half 
+            width_select    = width_half  - 40
             height_select   = height_half - 20
             cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
             cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
@@ -234,17 +242,18 @@ class lane_follow:
                 else:
                     self.stopline_dis = int(np.mean(point))
                 # print(self.stopline_dis)
-                if self.stopline_dis > 55:
+                if self.stopline_dis > 45:
                     # Approaching the intersection
                     # Switch to line following
                     self._intersection_flag = True
                     if self._next_action == -1:
                         self._pause_flag = True
                     else:
+                        print('Intersection: ',self._current_node)
                         print('Intersection action:',self._next_action)
             else:
                 # now chose another target
-                if not self._action_list == -1:
+                if not self._next_action == -1:
                     lane_lower = np.array([self.h_lower_g[self._next_action],self.s_lower_g[self._next_action],self.v_lower_g[self._next_action]])
                     lane_upper = np.array([self.h_upper_g[self._next_action],self.s_upper_g[self._next_action],self.v_upper_g[self._next_action]])
                     
@@ -264,19 +273,23 @@ class lane_follow:
                         exit_dis = 0
                     else:
                         exit_dis = int(np.mean(point))
-                    # print(exit_dis)
-                    # print(point[0])
+                        
                     if exit_dis > 15 and len(point[0]) > 5:
                         self._intersection_flag = False
-                        self._action_index += 1
-                        print('next action order:',str(self._action_index))
-                        if self._action_index == len(self._action_list):
+                        print('Exiting intersection')
+                        self._last_node     = self._current_node
+                        self._current_node  = self._next_node
+                        self._node_index += 1
+                        if self._node_index == len(self._node_list):
                             # no more action needed
                             self._next_action = -1
                             self._task_index  += 1
+                            print('Task Finished')
                         else:
-                            self._next_action = self._action_list[self._action_index]
-                        #pass
+                            self._next_node     = self._node_list[self._node_index]
+                            self._next_action   = local_mapper(self._last_node,self._current_node,self._next_node)
+                            print('Next node: ',self._current_node)
+                            print('____')
                 else:
                     self._pause_flag = True
                 
@@ -325,9 +338,9 @@ class lane_follow:
             
             if self.yellowleft:
                 self.lane_center_1 = 0
-                self.lane_center_2 = 320
+                self.lane_center_2 = width_half * 2
             else:
-                self.lane_center_1 = 320
+                self.lane_center_1 = width_half * 2
                 self.lane_center_2 = 0
                 
         try:
@@ -416,37 +429,47 @@ class lane_follow:
             range_search = range(0,50,10)
         for i in range_search:
             point = np.nonzero(mask[half_h + i])
+            if self._next_action == 0:
+                point1 = np.nonzero(mask[half_h + i + 20])
             #print(len(point[0]))
-            if len(point[0]) > 8 and len(point[0]) < 50: # Remove lines of other directions
-                data = point[0]
-                seg_index = 0
-                seg_dict = {}
-                cur_seg = []
-                for pt in range(len(data)):
-                    if pt == 0:
-                        cur_seg.append(data[pt])
-                    else:
-                        if data[pt] - data[pt-1] < 5:
-                            # continous
+            if not self._next_action == 0:
+                if len(point[0]) > 8 and len(point[0]) < 50: # Remove lines of other directions
+                    data = point[0]
+                    seg_index = 0
+                    seg_dict = {}
+                    cur_seg = []
+                    for pt in range(len(data)):
+                        if pt == 0:
                             cur_seg.append(data[pt])
-                        elif len(cur_seg) > 8:
-                            seg_dict[seg_index] = cur_seg
-                            cur_seg = [data[pt]]
-                            seg_index += 1
                         else:
-                            cur_seg = [data[pt]]
-                            # too short, abandon
-                if len(cur_seg) > 8:
-                    seg_dict[seg_index] = cur_seg
-                if len(seg_dict) == 0:
-                    return 0
-                if self._next_action == 1:
-                    _line_center = int(np.mean(seg_dict[0]))
-                elif self._next_action == 2 and len(seg_dict) > 1:
-                    _line_center = int(np.mean(seg_dict[1]))
+                            if data[pt] - data[pt-1] < 5:
+                                # continous
+                                cur_seg.append(data[pt])
+                            elif len(cur_seg) > 8:
+                                seg_dict[seg_index] = cur_seg
+                                cur_seg = [data[pt]]
+                                seg_index += 1
+                            else:
+                                cur_seg = [data[pt]]
+                                # too short, abandon
+                    if len(cur_seg) > 8:
+                        seg_dict[seg_index] = cur_seg
+                    if len(seg_dict) == 0:
+                        return 0
+                    if self._next_action == 1:
+                        _line_center = int(np.mean(seg_dict[0]))
+                    elif self._next_action == 2 and len(seg_dict) > 1:
+                        _line_center = int(np.mean(seg_dict[1]))
+                    else:
+                        _line_center = int(np.mean(seg_dict[0]))
+                    return _line_center
+            else:
+                # straight line
+                if len(point1[0]) > 8 and len(point1[0]) < 50:
+                    _line_center = np.mean(point1)
+                    return _line_center
                 else:
-                    _line_center = int(np.mean(seg_dict[0]))
-                return _line_center
+                    continue
         return 0
     
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
 string robot_name
 int64 task_index
 ---
-int8[] action_list
+int8[] node_list
