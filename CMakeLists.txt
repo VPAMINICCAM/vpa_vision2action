@@ -56,7 +56,7 @@ find_package(catkin REQUIRED
 add_service_files(
   FILES
   AssignTask.srv
-  # InterManage.srv
+  InterManage.srv
   #Service2.srv
 )
 

@@ -11,7 +11,8 @@ from vpa_vision2action.cfg import color_hsvConfig
 from dynamic_reconfigure.server import Server
 from lane_follow_controller import lf_pi_control
 from acc_controller import acc_pi_control
-from vpa_vision2action.srv import AssignTask,AssignTaskRequest,AssignTaskResponse
+from vpa_vision2action.srv import AssignTask
+from vpa_vision2action.srv import InterManage
 from local_map import local_mapper
 class lane_follow:
     def __init__(self):    
@@ -92,10 +93,11 @@ class lane_follow:
         self.h_upper_e = 90
         self.s_upper_e = 130
         self.v_upper_e = 255
-        
-        rospy.loginfo("waiting for task server")
-        rospy.wait_for_service("/AssignTask")
         self._pause_flag = False
+        
+        rospy.loginfo("Waiting for task server")
+        rospy.wait_for_service("/AssignTask")
+        
         self._task_proxy = rospy.ServiceProxy("/AssignTask",AssignTask)
         resp = self._task_proxy(self.robot_name,0)
         self._node_list = resp.node_list
@@ -113,7 +115,10 @@ class lane_follow:
         
         self.stopline_dis  = 0
         self._intersection_flag = False
-        
+
+        rospy.loginfo("Waiting for intersection server")
+        rospy.wait_for_service("/ManageInter")
+        self._inter_proxy = rospy.ServiceProxy("/ManageInter",InterManage)  
         #debug
         # self._intersection_flag = True
         # self._next_action = 0
@@ -130,9 +135,11 @@ class lane_follow:
             self.acc_kp  = 0.05
             self.acc_ki  = 0
             self.last_vaild_time = 0
-            
+        
+        self._timer    = rospy.Timer(rospy.Duration(0.5),self._timer_cb)    
         self.srv_color = Server(color_hsvConfig,self.dynamic_reconfigure_callback_hsv)
         self.image_sub  = rospy.Subscriber("usb_cam/image_raw", Image, self.callback)
+        
         
     def dynamic_reconfigure_callback_hsv(self,config,level):
         # update config param
@@ -168,7 +175,13 @@ class lane_follow:
         self.v_upper_s = config.v_upper_s  
         
         return config
-
+    def _timer_cb(self,_):
+        if self._intersection_flag and self._pause_flag:
+            if not self._next_action == -1:
+                resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,False)
+                if resp:
+                    self._pause_flag = False
+    
     def callback(self,data:Image):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -246,6 +259,10 @@ class lane_follow:
                     # Approaching the intersection
                     # Switch to line following
                     self._intersection_flag = True
+                    if not self._next_action == -1:
+                        resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,False)
+                        if not resp:
+                            self._pause_flag = True
                     if self._next_action == -1:
                         self._pause_flag = True
                     else:
@@ -277,6 +294,7 @@ class lane_follow:
                     if exit_dis > 15 and len(point[0]) > 5:
                         self._intersection_flag = False
                         print('Exiting intersection')
+                        resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,True)
                         self._last_node     = self._current_node
                         self._current_node  = self._next_node
                         self._node_index += 1
