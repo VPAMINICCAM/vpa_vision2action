@@ -82,7 +82,7 @@
             <param name="test_mode"            value="$(arg test_mode)"/>  
             <param name="acc_on"               value="$(arg acc_on)"/> 
             <param name="publish_mask"         value="false"/> 
-            <param name="robot_name"           value="(arg robot_name)"/>
+            <param name="robot_name"           value="$(arg robot_name)"/>
             <!-- mask publish banned in multi-robot -->
             </node>
                 <include file="$(find vpa_vision2action)/launch/db19camera.launch"/>
