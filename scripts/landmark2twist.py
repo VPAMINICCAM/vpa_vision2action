@@ -78,7 +78,7 @@ class lane_follow:
 
         # guide line
         self.h_lower_g = [5,    130,    10] # through, left , right
-        self.s_lower_g = [80,   40,     20]
+        self.s_lower_g = [80,   40,     8]
         self.v_lower_g = [145,  105,    160]
         
         self.h_upper_g = [30,   170,    40]
