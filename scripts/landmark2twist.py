@@ -78,11 +78,11 @@ class lane_follow:
 
         # guide line
         self.h_lower_g = [5,    130,    10] # through, left , right
-        self.s_lower_g = [80,   40,     20]
+        self.s_lower_g = [80,   40,     15]
         self.v_lower_g = [160,  105,    190]
         
-        self.h_upper_g = [30,   170,    35]
-        self.s_upper_g = [105,   75,     65]
+        self.h_upper_g = [30,   170,    40]
+        self.s_upper_g = [105,   75,    65]
         self.v_upper_g = [210,  200,    240]
         
         # intersection exit
@@ -121,7 +121,7 @@ class lane_follow:
         self._inter_proxy = rospy.ServiceProxy("/ManageInter",InterManage)  
         #debug
         # self._intersection_flag = True
-        # self._next_action = 0
+        # self._next_action = 2
         
         if self.acc_mode:
             if self.test_mode:
@@ -223,8 +223,8 @@ class lane_follow:
         if self.test_mode:
             # it print the hsv value of the center point in this image
             # play around here to move the cursor
-            width_select    = width_half  - 40
-            height_select   = height_half - 20
+            width_select    = width_half  
+            height_select   = height_half
             cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
             cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
             cv2.line(res,(width_select , height_select-10), (width_select , height_select+10), (0,0,255), 1)
@@ -263,7 +263,6 @@ class lane_follow:
                         resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,False)
                         if not resp.pass_flag:
                             self._pause_flag = True
-                            print('Wait for intersection')
                     if self._next_action == -1:
                         self._pause_flag = True
                     else:
