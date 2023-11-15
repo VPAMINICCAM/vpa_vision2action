@@ -79,7 +79,7 @@ class lane_follow:
         # guide line
         self.h_lower_g = [5,    130,    10] # through, left , right
         self.s_lower_g = [80,   40,     15]
-        self.v_lower_g = [160,  105,    190]
+        self.v_lower_g = [160,  105,    160]
         
         self.h_upper_g = [30,   170,    40]
         self.s_upper_g = [105,   75,    65]
@@ -224,7 +224,7 @@ class lane_follow:
             # it print the hsv value of the center point in this image
             # play around here to move the cursor
             width_select    = width_half  
-            height_select   = height_half
+            height_select   = height_half + 40
             cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
             cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
             cv2.line(res,(width_select , height_select-10), (width_select , height_select+10), (0,0,255), 1)
