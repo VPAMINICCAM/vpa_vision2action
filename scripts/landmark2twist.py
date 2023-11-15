@@ -179,7 +179,7 @@ class lane_follow:
         if self._intersection_flag and self._pause_flag:
             if not self._next_action == -1:
                 resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,False)
-                if resp:
+                if resp.pass_flag:
                     self._pause_flag = False
     
     def callback(self,data:Image):
@@ -261,8 +261,9 @@ class lane_follow:
                     self._intersection_flag = True
                     if not self._next_action == -1:
                         resp = self._inter_proxy(self.robot_name,self._next_action,self._current_node,self._last_node,False)
-                        if not resp:
+                        if not resp.pass_flag:
                             self._pause_flag = True
+                            print('Wait for intersection')
                     if self._next_action == -1:
                         self._pause_flag = True
                     else:
