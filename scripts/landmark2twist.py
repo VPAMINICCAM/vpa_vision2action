@@ -18,7 +18,7 @@ class lane_follow:
     def __init__(self):    
         #define topic publisher and subscriber
         self.bridge         = CvBridge()  
-        self.test_mode      = bool(rospy.get_param('~test_mode',False))
+        self.test_mode      = bool(rospy.get_param('~test_mode',True))
         self.publish_mask   = bool(rospy.get_param('~publish_mask',True))
         self.acc_mode   = bool(rospy.get_param('~acc_on',True))
         self.pub_cmd    = rospy.Publisher('cmd_vel',Twist,queue_size=1)
@@ -82,7 +82,7 @@ class lane_follow:
         self.v_lower_g = [160,  105,    160]
         
         self.h_upper_g = [30,   170,    40]
-        self.s_upper_g = [105,   75,    30]
+        self.s_upper_g = [105,   75,    55]
         self.v_upper_g = [210,  200,    240]
         
         # intersection exit
@@ -223,8 +223,8 @@ class lane_follow:
         if self.test_mode:
             # it print the hsv value of the center point in this image
             # play around here to move the cursor
-            width_select    = width_half  - 10
-            height_select   = height_half + 30
+            width_select    = width_half 
+            height_select   = height_half
             cv2.circle(res, (width_select ,height_select), 5, (0,0,255), 1)
             cv2.line(res,(width_select -10, height_select), (width_select  +10,height_select), (0,0,255), 1)
             cv2.line(res,(width_select , height_select-10), (width_select , height_select+10), (0,0,255), 1)
