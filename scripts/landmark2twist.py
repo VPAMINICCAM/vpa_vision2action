@@ -120,8 +120,8 @@ class lane_follow:
         rospy.wait_for_service("/ManageInter")
         self._inter_proxy = rospy.ServiceProxy("/ManageInter",InterManage)  
         #debug
-        self._intersection_flag = True
-        self._next_action = 0
+        # self._intersection_flag = True
+        # self._next_action = 0
         
         if self.acc_mode:
             if self.test_mode:
