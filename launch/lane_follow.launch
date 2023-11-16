@@ -13,7 +13,7 @@
             <param name="s_upper_1"            value="255"/>
             <param name="v_upper_1"            value="255"/>
             <!-- lane detecting - white lane -->
-            <param name="h_lower_2"            value="30"/>
+            <param name="h_lower_2"            value="25"/>
             <param name="s_lower_2"            value="0"/>
             <param name="v_lower_2"            value="200"/>
             <param name="h_upper_2"            value="100"/>
@@ -59,7 +59,7 @@
             <param name="s_upper_1"            value="255"/>
             <param name="v_upper_1"            value="255"/>
             <!-- lane detecting - white lane -->
-            <param name="h_lower_2"            value="30"/>
+            <param name="h_lower_2"            value="25"/>
             <param name="s_lower_2"            value="0"/>
             <param name="v_lower_2"            value="200"/>
             <param name="h_upper_2"            value="100"/>
