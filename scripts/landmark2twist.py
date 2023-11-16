@@ -81,7 +81,7 @@ class lane_follow:
         self.s_lower_g = [80,   40,     8]
         self.v_lower_g = [145,  105,    160]
         
-        self.h_upper_g = [30,   170,    40]
+        self.h_upper_g = [30,   170,    60]
         self.s_upper_g = [110,   75,    65]
         self.v_upper_g = [210,  200,    240]
         
