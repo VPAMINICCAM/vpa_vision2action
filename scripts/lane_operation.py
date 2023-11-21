@@ -118,7 +118,7 @@ class LaneOperationNode:
         self._acc_mode   = bool(rospy.get_param('~acc_on',True))
         # simple ACC function on or off, default on
 
-        self._robot_name = rospy.get_param('~robot_name','vivian')
+        self._robot_name = rospy.get_param('~robot_name','daisy')
 
         self.result_pub = rospy.Publisher("result_image", Image, queue_size=1)
         self.pub_cmd    = rospy.Publisher('cmd_vel',Twist,queue_size=1)
@@ -163,9 +163,9 @@ class LaneOperationNode:
 
         # guiding lines inside intersections - no dynamic reconfigure
         self._right_guide_hsv = HSVSpace(60,10,65,8,235,170)
-        self._left_guide_hsv  = HSVSpace(170,130,75,40,200,105)
-        self._thur_guide_hsv  = HSVSpace(30,5,110,80,210,145)   
-        self._exit_line_hsv   = HSVSpace(90,35,130,50,255,140)
+        self._left_guide_hsv  = HSVSpace(160,140,180,130,230,175)
+        self._thur_guide_hsv  = HSVSpace(150,130,160,140,230,210)   
+        self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
 
         self._veh = OpStatus()
 
@@ -174,6 +174,8 @@ class LaneOperationNode:
         self._veh.loadTaskList(task_list=self._request_task_service(task_index=0))
         self._veh.setNextAction()
 
+        self._request_inter_init()
+        
         if self._acc_mode:
             self._veh_acc = AccControl()
         
@@ -222,7 +224,7 @@ class LaneOperationNode:
         height_half = int(hsv_image.shape[0]/2)
         if self._test_mode:
             # This mode is made for debug, reading back the hsv value and output on screen
-            _test_image = self._draw_test_mark(width_half,height_half,hsv_image,cv_image)
+            _test_image = self._draw_test_mark(width_half -10,height_half + 20,hsv_image,cv_image)
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
@@ -238,7 +240,7 @@ class LaneOperationNode:
                 _line_center_1 = self._search_line(mask1,50,20,height_half,10,0,width_half*2)
 
                 if self._acc_mode:
-                    mask_acc = self._acc_hsv(hsv_image)
+                    mask_acc = self._acc_hsv.generate_mask(hsv_image)
 
                 if self._veh._start_flag:
                     # This is the first frame
@@ -248,6 +250,7 @@ class LaneOperationNode:
                     else:
                         self._veh._is_yellow_left = False
                         rospy.loginfo('Initialized: Yellow Line on the right')
+                    self._veh._start_flag = False
 
                 if self._veh._is_yellow_left and _line_center_1 == 0:
                     # The yellow is supposed to be on the left but we did not find it
@@ -273,7 +276,8 @@ class LaneOperationNode:
 
                 # check distance to stopline
                 _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
-                if _dis2stopline > 45: # Tune me for distance
+                # print(_dis2stopline)
+                if _dis2stopline > 35: # Tune me for distance
                     self._veh.enterIntersection()
                     if self._veh._next_action == -1:
                         # no action assigned for this intersection
@@ -303,9 +307,13 @@ class LaneOperationNode:
                 elif self._veh._next_action == 2:
                     _mask = self._right_guide_hsv.generate_mask(hsv_image)
                 else:
-                    rospy.loginfo('Invalid action, failed to determine the guide line')
+                    rospy.loginfo('Invalid action %d, failed to determine the guide line',self._veh._next_action)
 
-                _lane_center = self._search_guide_line(_mask,height_half)
+                if not self._veh._next_action == -1:
+                    _lane_center = self._search_guide_line(_mask,height_half)
+                else:
+                    _lane_center = 0
+                
                 if _lane_center == 0:
                     # no line found
                     self._veh._pause_flag = True
@@ -315,9 +323,9 @@ class LaneOperationNode:
                 
                 # checking if left intersection
                 mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
-                _dis2exitline   = self._distance_2_line(_mask_exit,height_half*2,height_half,width_half)
-
-                if _dis2exitline > 15:
+                _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
+                # print('Exit line measurement:',_dis2exitline)
+                if _dis2exitline > 25:
                     if not self._veh._leaving_intersection:
                         self._veh._leaving_intersection = True
 
@@ -326,21 +334,21 @@ class LaneOperationNode:
                 mask_acc = self._acc_hsv.generate_mask(hsv_image)
                 self._search_front_car(mask_acc,height_half,data)
             
-            self._send_twist_command()
+            self._send_twist_command(_lane_center,width_half)
         # publish images for debug
         try:
-            if self._publish_mask:
-                self._publish_image(self.mask_pub_1,mask1,True)
-                self._publish_image(self.mask_pub_2,mask2,True)
-
+            if self._publish_mask and not self._test_mode:
                 if self._acc_mode:
                     self._publish_image(self.mask_pub_acc,mask_acc,True)
                 
                 if self._veh._is_in_intersection:
                     self._publish_image(self.mask_pub_3,mask_exit,True)
+                    self._publish_image(self.mask_pub_1,_mask,True)
                 else:
                     self._publish_image(self.mask_pub_3,mask_stop,True)
-            if not self._test_mode:
+                    self._publish_image(self.mask_pub_1,mask1,True)
+                    self._publish_image(self.mask_pub_2,mask2,True)
+
                 self._publish_image(self.result_pub,cv_image,False)
         except CvBridgeError as e:
             print(e)
@@ -382,7 +390,7 @@ class LaneOperationNode:
                 return _line_center
             else:
                 continue
-            return 0 # nothing found in the end
+        return 0 # nothing found in the end
 
     def _distance_2_line(self,_mask,_upper_bound:int,_lower_bound:int,_width_center:int) -> int:
         point = np.nonzero(_mask[_lower_bound:_upper_bound,_width_center])[0]
@@ -396,13 +404,13 @@ class LaneOperationNode:
         
     def _search_guide_line(self,_mask,_height_center:int):
         for i in range(-20,50,10):
+            seg_index = 0
             _l1 = np.nonzero(_mask[_height_center + i,:])[0]
             if len(_l1) > 10 and len(_l1) < 50:
-                seg_index = 0
                 seg_dict  = {}
                 cur_seg   = []
                 last_pt   = 0
-                for pt,pt_index in enumerate(_l1):
+                for pt_index,pt in enumerate(_l1):
                     if pt_index == 0:
                         cur_seg.append(pt)
                         last_pt = pt
@@ -418,10 +426,12 @@ class LaneOperationNode:
                         else:
                             cur_seg = [pt]
                             last_pt = pt
+                seg_dict[seg_index] = cur_seg
                 if seg_index >= 1:
                     # more than one segement found
                     # skip
-                    continue
+                    if self._veh._next_action == 1:
+                        return int(np.mean(seg_dict[0]))
                 else:
                     return int(np.mean(seg_dict[0]))
             else:
@@ -476,5 +486,6 @@ class LaneOperationNode:
 if __name__ == '__main__':
     try:
         N = LaneOperationNode('Lane_Operation')
+        rospy.spin()
     except KeyboardInterrupt:
         cv2.destroyAllWindows()
