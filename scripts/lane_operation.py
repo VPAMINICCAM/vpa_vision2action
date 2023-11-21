@@ -349,7 +349,7 @@ class LaneOperationNode:
                     self._publish_image(self.mask_pub_1,mask1,True)
                     self._publish_image(self.mask_pub_2,mask2,True)
 
-                self._publish_image(self.result_pub,cv_image,False)
+            self._publish_image(self.result_pub,cv_image,False)
         except CvBridgeError as e:
             print(e)
 
