@@ -4,7 +4,7 @@
     <arg name="acc_on" default="true"/>
     <arg name="publish_mask" default="false"/>
     <group if="$(eval robot_name == '')">
-        <node pkg="vpa_vision2action" name="lane_operation" type="landmark2twist.py" output="screen">
+        <node pkg="vpa_vision2action" name="lane_operation" type="lane_operation.py" output="screen">
             <!-- lane detecting - yellow lane -->
             <param name="h_lower_1"            value="80"/>
             <param name="s_lower_1"            value="80"/>
@@ -50,7 +50,7 @@
     <!-- multi-robot operation -->
     <group unless="$(eval robot_name == '')">
         <group ns="$(arg robot_name)">
-            <node pkg="vpa_vision2action" name="lane_operation" type="landmark2twist.py" output="screen">
+            <node pkg="vpa_vision2action" name="lane_operation" type="lane_operation.py" output="screen">
             <!-- lane detecting - yellow lane -->
             <param name="h_lower_1"            value="80"/>
             <param name="s_lower_1"            value="80"/>
