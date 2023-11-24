@@ -168,7 +168,7 @@ class LaneOperationNode:
         # guiding lines inside intersections - no dynamic reconfigure
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
         self._left_guide_hsv  = HSVSpace(160,140,180,90,230,175)
-        self._thur_guide_hsv  = HSVSpace(30,0,250,190,210,170)   
+        self._thur_guide_hsv  = HSVSpace(30,0,250,190,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
 
         self._veh = OpStatus()
@@ -417,6 +417,9 @@ class LaneOperationNode:
         if self._veh._next_action == 1:
             low_bound   = 15
             upper_bound = 75
+        elif self._veh._next_action == 0:
+            low_bound   = 15
+            upper_bound = 75
         else:
             low_bound = -15
             upper_bound = 75            
@@ -453,7 +456,8 @@ class LaneOperationNode:
                         max_index = self._find_centerest_seg(seg_dict)
                     else:
                         max_index = 0
-                    # print(max_index,seg_dict)
+                    print(i,_l1)    
+                    print(max_index,seg_dict)
                     if max_index == -1:
                         continue
                     try:
