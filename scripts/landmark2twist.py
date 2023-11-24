@@ -347,6 +347,7 @@ class lane_follow:
                 _twist2publish.linear.x = v_x * v_factor 
                 _twist2publish.angular.z = w_z * v_factor
                 if not self._pause_flag:
+                    print(rospy.get_time() - data.header.stamp.secs + 1e-9 * data.header.stamp.nsecs)
                     self.pub_cmd.publish(_twist2publish)
                 else:
                     _twist2publish = Twist()

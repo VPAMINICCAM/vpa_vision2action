@@ -84,3 +84,5 @@ def local_mapper(last: int,current: int,next: int) -> int:
         return 1
     if node_set == [5,4,1]:
         return 0
+    
+    return -1
