@@ -456,8 +456,6 @@ class LaneOperationNode:
                         max_index = self._find_centerest_seg(seg_dict)
                     else:
                         max_index = 0
-                    print(i,_l1)    
-                    print(max_index,seg_dict)
                     if max_index == -1:
                         continue
                     try:
@@ -538,7 +536,6 @@ class LaneOperationNode:
             center_value = abs(int(np.mean(seg_dict[0])) - 160)
         except:
             return -1
-        
         for i in range(1,seg_len):
             if abs(np.mean(seg_dict[i]) - 160) < center_value:
                 center_index = i
