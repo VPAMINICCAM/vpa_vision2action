@@ -146,12 +146,12 @@ class LaneOperationNode:
         ) # HSV space for white (side lane line)
 
         self._acc_hsv       = HSVSpace(
-            h_u=int(rospy.get_param('~h_upper_a',50)),
-            h_l=int(rospy.get_param('~h_lower_a',5)),
+            h_u=int(rospy.get_param('~h_upper_a',30)),
+            h_l=int(rospy.get_param('~h_lower_a',0)),
             s_u=int(rospy.get_param('~s_upper_a',200)),
-            s_l=int(rospy.get_param('~s_lower_a',130)),
-            v_u=int(rospy.get_param('~v_upper_s',235)),
-            v_l=int(rospy.get_param('~v_lower_s',170))
+            s_l=int(rospy.get_param('~s_lower_a',90)),
+            v_u=int(rospy.get_param('~v_upper_a',200)),
+            v_l=int(rospy.get_param('~v_lower_a',20))
         )
 
         self._stop_line_hsv = HSVSpace(
