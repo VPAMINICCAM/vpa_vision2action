@@ -231,7 +231,6 @@ class LaneOperationNode:
         if self._veh._request_inter_timer:
             _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
             if _pass:
-                print('Approved with timer')
                 self._veh._pause_flag           = False
                 self._veh._request_inter_timer  = False
                 self._veh._has_released         = False
@@ -313,7 +312,6 @@ class LaneOperationNode:
                         # There is action to perform but must ask for permission
                         _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
                         if not _pass:
-                            print("Did not get approved, swicth to timer")
                             self._veh._pause_flag = True
                             self._veh._request_inter_timer = True
                             # not approved for this request
