@@ -379,7 +379,7 @@ class LaneOperationNode:
             if self._acc_mode:
                 mask_acc = self._acc_hsv.generate_mask(hsv_image)
                 self._search_front_car(mask_acc,height_half,rospy.get_time())
-                
+                print(self.)
             if not _lane_center == 0:
                 self._send_twist_command(_lane_center,width_half)
         # publish images for debug
@@ -530,16 +530,16 @@ class LaneOperationNode:
             c2 = int(np.mean(p2))
             if abs(c1-c2)/c1 < 0.2 and c1 > 60 and c1 < 290:
                 self._veh_acc._last_dis         = self._veh_acc._acc_dis
-                self._veh_acc._acc_dis                   = len(np.nonzero(_mask_acc[:,c1])[0])
+                self._veh_acc._acc_dis          = len(np.nonzero(_mask_acc[:,c1])[0])
                 self._veh_acc._last_valid_time  = tick
             else:
                 now_seconds = rospy.get_time()
                 if now_seconds - self._veh_acc._last_valid_time > t_tol:
-                    self._acc_dis = 0
+                    self._veh_acc._acc_dis = 0
         else:
             now_seconds = rospy.get_time()
             if now_seconds - self._veh_acc._last_valid_time > t_tol:
-                self._acc_dis = 0           
+                self._veh_acc._acc_dis = 0           
 
     def _publish_image(self,pub_name,image,_is_mask):
         if _is_mask:
