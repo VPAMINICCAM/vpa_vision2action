@@ -165,7 +165,7 @@ class LaneOperationNode:
 
         # guiding lines inside intersections - no dynamic reconfigure
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
-        self._left_guide_hsv  = HSVSpace(160,140,180,90,230,175)
+        self._left_guide_hsv  = HSVSpace(160,140,180,90,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,190,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
 
