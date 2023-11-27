@@ -379,7 +379,6 @@ class LaneOperationNode:
             if self._acc_mode:
                 mask_acc = self._acc_hsv.generate_mask(hsv_image)
                 self._search_front_car(mask_acc,height_half,rospy.get_time())
-                print(self.)
             if not _lane_center == 0:
                 self._send_twist_command(_lane_center,width_half)
         # publish images for debug
