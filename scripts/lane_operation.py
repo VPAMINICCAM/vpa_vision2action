@@ -16,7 +16,9 @@ from geometry_msgs.msg import Twist
 from local_map import local_mapper
 from lane_follow_controller import lf_pi_control
 from acc_controller import acc_pi_control
-
+# Dynamic reconfiguration
+from vpa_vision2action.cfg import color_hsvConfig
+from dynamic_reconfigure.server import Server
 class HSVSpace:
     
     def __init__(self,h_u,h_l,s_u,s_l,v_u,v_l) -> None:
@@ -70,10 +72,6 @@ class OpStatus:
             self._setNode(node_type='next',node_value=self._task_list[self._node_pointer])
             self.setNextAction()
 
-
-    
-    
-    
     def enterIntersection(self):
         self._is_in_intersection = True
     
@@ -191,7 +189,43 @@ class LaneOperationNode:
                 self.mask_pub_acc = rospy.Publisher("mask_acc_image", Image, queue_size=1)
         
         self.image_sub  = rospy.Subscriber("usb_cam/image_raw", Image, self._image_cb)
-        self._timer     = rospy.Timer(rospy.Duration(0.5),self._timer_cb)    
+        self._timer     = rospy.Timer(rospy.Duration(0.5),self._timer_cb)
+        self.srv_color = Server(color_hsvConfig,self.dynamic_reconfigure_callback_hsv)
+        
+    def dynamic_reconfigure_callback_hsv(self,config,level):
+        
+        self._lane_hsv_1._h_lower = config.h_lower_1
+        self._lane_hsv_1._s_lower = config.s_lower_1
+        self._lane_hsv_1._v_lower = config.v_lower_1
+        
+        self._lane_hsv_1._h_upper = config.h_upper_1
+        self._lane_hsv_1._s_upper = config.s_upper_1
+        self._lane_hsv_1._v_upper = config.v_upper_1
+
+        self._lane_hsv_2._h_lower = config.h_lower_2
+        self._lane_hsv_2._s_lower = config.s_lower_2
+        self._lane_hsv_2._v_lower = config.v_lower_2
+
+        self._lane_hsv_2._h_upper = config.h_upper_2
+        self._lane_hsv_2._s_upper = config.s_upper_2
+        self._lane_hsv_2._v_upper = config.v_upper_2
+        
+        self._acc_hsv._h_lower = config.h_lower_a
+        self._acc_hsv._s_lower = config.s_lower_a
+        self._acc_hsv._v_lower = config.v_lower_a
+
+        self._acc_hsv._h_upper = config.h_upper_a
+        self._acc_hsv._s_upper = config.s_upper_a
+        self._acc_hsv._v_upper = config.v_upper_a
+        
+        self._stop_line_hsv._h_lower = config.h_lower_s
+        self._stop_line_hsv._s_lower = config.s_lower_s
+        self._stop_line_hsv._v_lower = config.v_lower_s
+        self._stop_line_hsv._h_upper = config.h_upper_s
+        self._stop_line_hsv._s_upper = config.s_upper_s
+        self._stop_line_hsv._v_upper = config.v_upper_s  
+        
+        return config
 
     def _timer_cb(self,_):
         if self._veh._request_inter_timer:
