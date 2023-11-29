@@ -1,0 +1,7 @@
+string robot_name
+int8 action_at_inter
+int8 inter_index
+int8 last_inter
+bool release_flag
+---
+bool pass_flag
