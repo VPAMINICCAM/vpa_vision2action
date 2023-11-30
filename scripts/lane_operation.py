@@ -60,6 +60,12 @@ class OpStatus:
         self._node_pointer      = 2 # point to the next node index
 
         self._task_list = []
+        
+        self._next_action = -1
+        
+        self._has_ready = False
+        self._request_task_timer = False
+        # set default value
     
     def loadNextAction(self):
         self._node_pointer += 1
@@ -168,13 +174,16 @@ class LaneOperationNode:
         self._left_guide_hsv  = HSVSpace(160,140,180,90,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,190,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
+        
+        self._buffer_line_hsv = HSVSpace(160,120,140,80,240,200)
 
         self._veh = OpStatus()
 
         self._request_task_init()
         # pass task list to the OperationStatus item 'veh'
-        self._veh.loadTaskList(task_list=self._request_task_service(task_index=0))
-        self._veh.setNextAction()
+        # self._veh.loadTaskList(task_list=self._request_task_service(task_index=0))
+        # self._veh.setNextAction()
+        # Do not ask for the first mission until the specific timing, not at initlization
 
         self._request_inter_init()
         
@@ -234,6 +243,15 @@ class LaneOperationNode:
                 self._veh._pause_flag           = False
                 self._veh._request_inter_timer  = False
                 self._veh._has_released         = False
+    
+        if self._veh._request_task_timer:
+            resp = self._request_task_service(task_index=self._veh._task_index)
+            if not len(resp) == 0:
+                self._veh.loadTaskList(task_list=resp)
+                self._veh.setNextAction()
+                self._veh._request_task_timer   = False
+                self._veh._pause_flag           = False
+                rospy.loginfo('Task receive in timer')
 
     def _image_cb(self,data:Image):
         try:
@@ -250,83 +268,111 @@ class LaneOperationNode:
         
         if self._test_mode:
             # This mode is made for debug, reading back the hsv value and output on screen
-            _test_image = self._draw_test_mark(width_half - 20,height_half + 30 ,hsv_image,cv_image)
+            _test_image = self._draw_test_mark(width_half -10,height_half+20 ,hsv_image,cv_image)
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
-                # the vehicle is not in the intersection
+                # the vehicle is not in the intersection and not in the lane
                 # search for yellow and white line on both side
                 # search for stop line
 
-                mask1 = self._lane_hsv_1.generate_mask(hsv_image)
-                mask2 = self._lane_hsv_2.generate_mask(hsv_image)
-
-                mask_stop = self._stop_line_hsv.generate_mask(hsv_image)
-                _line_center_1 = self._search_line(mask1,50,-20,height_half,10,0,width_half*2)
+                # new status in the start buffer
+                
                 if self._acc_mode:
                     mask_acc = self._acc_hsv.generate_mask(hsv_image)
                 
                 if self._veh._start_flag:
-                    # This is the first frame
-                    if _line_center_1 < width_half:
-                        self._veh._is_yellow_left = True
-                        rospy.loginfo('Initialized: Yellow Line on the left')
-                    else:
-                        self._veh._is_yellow_left = False
-                        rospy.loginfo('Initialized: Yellow Line on the right')
-                    self._veh._start_flag = False
-                if self._veh._is_yellow_left and _line_center_1 == 0:
-                    # The yellow is supposed to be on the left but we did not find it
-                    _line_center_1 = 0
-                elif not self._veh._is_yellow_left and _line_center_1 == 0:
-                    # The yellow is supposed to be on the right but we did not find it
-                    _line_center_1 = width_half * 2
-                
-                if self._veh._is_yellow_left: # Search the white line, ignoring what is on the other side of the yellow line
-                    _line_center_2 = self._search_line(mask2,50,-20,height_half,10,_line_center_1,width_half*2)
-                else:
-                    _line_center_2 = self._search_line(mask2,50,-20,height_half,10,0,_line_center_1)
-                if _line_center_2 == 0:
-                    # we find no white line
-                    if self._veh._is_yellow_left:
-                        _line_center_2 = width_half * 2
-                    else:
-                        _line_center_2 = 0
+                    mask_buffer     = self._buffer_line_hsv.generate_mask(hsv_image)
+                    _lane_center    = self._search_guide_line(mask_buffer,height_half)
                     
-                _lane_center = int((_line_center_1 + _line_center_2)/2)
-                cv2.circle(cv_image, (_lane_center,height_half), 5, (0,255,0), 5)
-
-                # check distance to stopline
-                _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
-                # print('stop line',_dis2stopline)
-                if _dis2stopline > 30: # Tune me for distance
-                    self._veh.enterIntersection()
-                    # self._veh._pause_flag = True
-                    if self._veh._next_action == -1:
-                        # no action assigned for this intersection
-                        self._veh._pause_flag = True
-                        self._veh._task_index += 1
-                        # ready for asking for more 
-                        # disable cmd_veh 
-                    elif not self._veh._request_inter_timer:
-                        # There is action to perform but must ask for permission
-                        _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
-                        if not _pass:
-                            self._veh._pause_flag = True
-                            self._veh._request_inter_timer = True
-                            # not approved for this request
-                            # stop the car and switch to timer, ask again later
-                        else:
-                            self._veh._has_released = False
-                            if self._veh._next_action == 0:
-                                _text = 'go straight'
-                            elif self._veh._next_action == 1:
-                                _text = 'left turn'
-                            elif self._veh._next_action == 2:
-                                _text = 'right turn'
+                    if _lane_center == 0:
+                        # no line found
+                        pass
+                    else:
+                        cv2.circle(cv_image, (_lane_center,height_half), 5, (255,100,0), 5)
+                
+                    _dis2ready = 0
+                    if not self._veh._has_ready:
+                        mask1       = self._lane_hsv_1.generate_mask(hsv_image)
+                        _dis2ready  = self._distance_2_line(mask1,height_half*2,height_half,width_half)
+                        if _dis2ready > 25:
+                            self._veh._has_ready = True
+                            rospy.loginfo('Arriving Ready line, Inquiring task')
+                            resp = self._request_task_service(task_index=self._veh._task_index)
+                            if len(resp) == 0:
+                                # not task assigned
+                                # switch to timer, ask again later
+                                self._veh._request_task_timer = True
+                                self._veh._pause_flag         = True
                             else:
-                                _text = 'stop'
-                            rospy.loginfo("Entering Intersection %s, action is %s",str(self._veh.this_node),_text)
+                                rospy.loginfo('Received Task at first trial')
+                                self._veh.loadTaskList(task_list=resp)
+                                self._veh.setNextAction()
+                    else:
+                        mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
+                        _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
+                    
+                        if _dis2exitline > 25:
+                            # entering the lane
+                            self._veh._start_flag = False
+                else:
+                    mask1 = self._lane_hsv_1.generate_mask(hsv_image)
+                    mask2 = self._lane_hsv_2.generate_mask(hsv_image)
+
+                    mask_stop = self._stop_line_hsv.generate_mask(hsv_image)
+                    _line_center_1 = self._search_line(mask1,50,-20,height_half,10,0,width_half*2)
+                
+                    if self._veh._is_yellow_left and _line_center_1 == 0:
+                        # The yellow is supposed to be on the left but we did not find it
+                        _line_center_1 = 0
+                    elif not self._veh._is_yellow_left and _line_center_1 == 0:
+                        # The yellow is supposed to be on the right but we did not find it
+                        _line_center_1 = width_half * 2
+                
+                    if self._veh._is_yellow_left: # Search the white line, ignoring what is on the other side of the yellow line
+                        _line_center_2 = self._search_line(mask2,50,-20,height_half,10,_line_center_1,width_half*2)
+                    else:
+                        _line_center_2 = self._search_line(mask2,50,-20,height_half,10,0,_line_center_1)
+                    if _line_center_2 == 0:
+                        # we find no white line
+                        if self._veh._is_yellow_left:
+                            _line_center_2 = width_half * 2
+                        else:
+                            _line_center_2 = 0
+                        
+                    _lane_center = int((_line_center_1 + _line_center_2)/2)
+                    cv2.circle(cv_image, (_lane_center,height_half), 5, (0,255,0), 5)
+
+                    # check distance to stopline
+                    _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
+                    # print('stop line',_dis2stopline)
+                    if _dis2stopline > 30: # Tune me for distance
+                        self._veh.enterIntersection()
+                        # self._veh._pause_flag = True
+                        if self._veh._next_action == -1:
+                            # no action assigned for this intersection
+                            self._veh._pause_flag = True
+                            # ready for asking for more 
+                            # disable cmd_veh 
+                        elif not self._veh._request_inter_timer:
+                            # There is action to perform but must ask for permission
+                            _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
+                            if not _pass:
+                                self._veh._pause_flag = True
+                                self._veh._request_inter_timer = True
+                                # not approved for this request
+                                # stop the car and switch to timer, ask again later
+                            else:
+                                self._veh._has_released = False
+                                if self._veh._next_action == 0:
+                                    _text = 'go straight'
+                                elif self._veh._next_action == 1:
+                                    _text = 'left turn'
+                                elif self._veh._next_action == 2:
+                                    _text = 'right turn'
+                                else:
+                                    _text = 'stop'
+                                rospy.loginfo("Entering Intersection %s, action is %s",str(self._veh.this_node),_text)
 
             else:
                 # we are in the intersection
@@ -371,7 +417,11 @@ class LaneOperationNode:
                         elif self._veh._next_action == 2:
                             _text = 'right'
                         else:
-                            _text = 'stop'
+                            _text = 'buffering'
+                            self._veh._start_flag = True
+                            self._veh._has_ready  = False
+                            self._veh._task_index += 1
+                            self._veh._node_pointer = 2
                         rospy.loginfo('Next Action: %s',_text)
                         print('__________')
 
@@ -391,9 +441,16 @@ class LaneOperationNode:
                     self._publish_image(self.mask_pub_3,mask_exit,True)
                     self._publish_image(self.mask_pub_1,_mask,True)
                 else:
-                    self._publish_image(self.mask_pub_3,mask_stop,True)
-                    self._publish_image(self.mask_pub_1,mask1,True)
-                    self._publish_image(self.mask_pub_2,mask2,True)
+                    if self._veh._start_flag:
+                        if not self._veh._has_ready:
+                            self._publish_image(self.mask_pub_3,mask1,True)
+                        else:
+                            self._publish_image(self.mask_pub_3,mask_exit,True)
+                        self._publish_image(self.mask_pub_1,mask_buffer,True)
+                    else:
+                        self._publish_image(self.mask_pub_3,mask_stop,True)
+                        self._publish_image(self.mask_pub_1,mask1,True)
+                        self._publish_image(self.mask_pub_2,mask2,True)
 
             self._publish_image(self.result_pub,cv_image,False)
         except CvBridgeError as e:
