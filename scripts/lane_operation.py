@@ -47,9 +47,9 @@ class OpStatus:
 
         self._pass_stopline         = False
         self._pause_flag            = False
-        self._start_flag            = True
+        self._start_flag            = False
         self._is_yellow_left        = True
-        self._is_in_intersection    = False
+        self._is_in_intersection    = True
         self._request_inter_timer   = False
         self._task_index            = 0
 
@@ -61,7 +61,7 @@ class OpStatus:
 
         self._task_list = []
         
-        self._next_action = -1
+        self._next_action = 1
         
         self._has_ready = False
         self._request_task_timer = False
@@ -510,6 +510,9 @@ class LaneOperationNode:
         elif self._veh._next_action == 0:
             low_bound   = 15
             upper_bound = 75
+        elif self._veh._next_action == 2:
+            low_bound   = 0
+            upper_bound = 75
         else:
             low_bound = -15
             upper_bound = 75            
@@ -537,13 +540,15 @@ class LaneOperationNode:
                             cur_seg = [pt]
                             last_pt = pt
                 if len(cur_seg) > 10 and  len(cur_seg) < 25:
-                    seg_dict[seg_index] = cur_seg         
+                    seg_dict[seg_index] = cur_seg
                 if seg_index >= 0:
-                    # more than one segement found
+                    # more than one segment found
                     # skip
                     # max_index = self._find_widest_seg(seg_dict)
                     if not self._veh._next_action == 1:
                         max_index = self._find_centerest_seg(seg_dict)
+                    elif self._veh._next_action == 2:
+                        max_index = seg_index
                     else:
                         max_index = 0
                     if max_index == -1:
