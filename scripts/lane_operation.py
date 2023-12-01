@@ -545,7 +545,7 @@ class LaneOperationNode:
                     # more than one segment found
                     # skip
                     # max_index = self._find_widest_seg(seg_dict)
-                    if not self._veh._next_action == 1:
+                    if self._veh._next_action == 0:
                         max_index = self._find_centerest_seg(seg_dict)
                     elif self._veh._next_action == 2:
                         max_index = seg_index
@@ -553,8 +553,16 @@ class LaneOperationNode:
                         max_index = 0
                     if max_index == -1:
                         continue
+                    
                     try:
-                        return int(np.mean(seg_dict[max_index]))
+                        _res = int(np.mean(seg_dict[max_index]))
+                        if self._veh._next_action == 0 and self._veh._is_in_intersection:
+                            if _res < 100 or _res > 220:
+                                continue
+                            else:
+                                return _res
+                        else:
+                            return _res
                     except:
                         continue
                 else:
