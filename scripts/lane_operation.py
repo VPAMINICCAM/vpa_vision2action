@@ -47,9 +47,9 @@ class OpStatus:
 
         self._pass_stopline         = False
         self._pause_flag            = False
-        self._start_flag            = False
+        self._start_flag            = True
         self._is_yellow_left        = True
-        self._is_in_intersection    = True
+        self._is_in_intersection    = False
         self._request_inter_timer   = False
         self._task_index            = 0
 
@@ -61,7 +61,7 @@ class OpStatus:
 
         self._task_list = []
         
-        self._next_action = 1
+        self._next_action = -1
         
         self._has_ready = False
         self._request_task_timer = False
