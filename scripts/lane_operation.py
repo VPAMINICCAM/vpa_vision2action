@@ -117,7 +117,7 @@ class LaneOperationNode:
         
         rospy.init_node(Nodename)
 
-        self._test_mode      = bool(rospy.get_param('~test_mode',True)) 
+        self._test_mode      = bool(rospy.get_param('~test_mode',False)) 
         # _test_mode will return the hsv value of the desired point, no vehicles action considered
 
         self._publish_mask   = bool(rospy.get_param('~publish_mask',True))
@@ -558,7 +558,7 @@ class LaneOperationNode:
                     try:
                         _res = int(np.mean(seg_dict[max_index]))
                         if self._veh._next_action == 0 and self._veh._is_in_intersection:
-                            if _res < 100 or _res > 220:
+                            if _res < 80 or _res > 220:
                                 continue
                             else:
                                 return _res
