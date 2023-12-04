@@ -558,7 +558,7 @@ class LaneOperationNode:
                     try:
                         _res = int(np.mean(seg_dict[max_index]))
                         if self._veh._next_action == 0 and self._veh._is_in_intersection:
-                            if _res < 80 or _res > 220:
+                            if _res < 55 or _res > 220:
                                 continue
                             else:
                                 return _res
