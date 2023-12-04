@@ -171,7 +171,7 @@ class LaneOperationNode:
 
         # guiding lines inside intersections - no dynamic reconfigure
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
-        self._left_guide_hsv  = HSVSpace(160,140,180,90,230,160)
+        self._left_guide_hsv  = HSVSpace(160,140,180,80,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,190,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
         
@@ -268,7 +268,7 @@ class LaneOperationNode:
         
         if self._test_mode:
             # This mode is made for debug, reading back the hsv value and output on screen
-            _test_image = self._draw_test_mark(width_half - 60,height_half,hsv_image,cv_image)
+            _test_image = self._draw_test_mark(width_half - 85,height_half,hsv_image,cv_image)
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
