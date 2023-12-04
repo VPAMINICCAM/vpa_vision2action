@@ -117,7 +117,7 @@ class LaneOperationNode:
         
         rospy.init_node(Nodename)
 
-        self._test_mode      = bool(rospy.get_param('~test_mode',False)) 
+        self._test_mode      = bool(rospy.get_param('~test_mode',True)) 
         # _test_mode will return the hsv value of the desired point, no vehicles action considered
 
         self._publish_mask   = bool(rospy.get_param('~publish_mask',True))
@@ -173,7 +173,7 @@ class LaneOperationNode:
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
         self._left_guide_hsv  = HSVSpace(160,140,180,80,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,190,220,170)   
-        self._exit_line_hsv   = HSVSpace(50,20,240,200,220,150)
+        self._exit_line_hsv   = HSVSpace(50,20,240,200,220,130)
         
         self._buffer_line_hsv = HSVSpace(160,120,140,10,240,200)
 
@@ -268,7 +268,7 @@ class LaneOperationNode:
         
         if self._test_mode:
             # This mode is made for debug, reading back the hsv value and output on screen
-            _test_image = self._draw_test_mark(width_half - 85,height_half,hsv_image,cv_image)
+            _test_image = self._draw_test_mark(width_half,height_half,hsv_image,cv_image)
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
@@ -403,6 +403,7 @@ class LaneOperationNode:
                 # checking if left intersection
                 mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                 _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
+
                 if _dis2exitline > 25:
                     self._veh._is_in_intersection = False
                     if not self._veh._has_released:
