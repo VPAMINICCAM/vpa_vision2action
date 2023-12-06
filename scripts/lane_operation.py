@@ -562,6 +562,11 @@ class LaneOperationNode:
                                 continue
                             else:
                                 return _res
+                        elif self._veh._next_action == 1 and self._veh._is_in_intersection:
+                            if _res > 220:
+                                continue
+                            else:
+                                return _res
                         else:
                             return _res
                     except:
