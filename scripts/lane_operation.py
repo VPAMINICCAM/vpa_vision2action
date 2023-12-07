@@ -173,7 +173,7 @@ class LaneOperationNode:
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
         self._left_guide_hsv  = HSVSpace(160,140,180,80,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,170,220,170)   
-        self._exit_line_hsv   = HSVSpace(50,20,240,200,220,130)
+        self._exit_line_hsv   = HSVSpace(50,20,240,170,220,130)
         
         self._buffer_line_hsv = HSVSpace(160,120,140,10,240,200)
 
