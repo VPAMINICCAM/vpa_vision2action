@@ -175,7 +175,7 @@ class LaneOperationNode:
         self._thur_guide_hsv  = HSVSpace(30,0,250,170,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,170,220,130)
         
-        self._buffer_line_hsv = HSVSpace(160,120,140,10,240,200)
+        self._buffer_line_hsv = HSVSpace(160,120,160,10,240,200)
 
         self._veh = OpStatus()
 
@@ -268,7 +268,7 @@ class LaneOperationNode:
         
         if self._test_mode:
             # This mode is made for debug, reading back the hsv value and output on screen
-            _test_image = self._draw_test_mark(width_half,height_half,hsv_image,cv_image)
+            _test_image = self._draw_test_mark(width_half,height_half+20,hsv_image,cv_image)
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
