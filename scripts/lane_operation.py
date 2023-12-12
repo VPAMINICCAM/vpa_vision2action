@@ -154,7 +154,7 @@ class LaneOperationNode:
         self._acc_hsv       = HSVSpace(
             h_u=int(rospy.get_param('~h_upper_a',30)),
             h_l=int(rospy.get_param('~h_lower_a',0)),
-            s_u=int(rospy.get_param('~s_upper_a',200)),
+            s_u=int(rospy.get_param('~s_upper_a',220)),
             s_l=int(rospy.get_param('~s_lower_a',90)),
             v_u=int(rospy.get_param('~v_upper_a',200)),
             v_l=int(rospy.get_param('~v_lower_a',20))

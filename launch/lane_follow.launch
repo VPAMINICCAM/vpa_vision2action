@@ -31,7 +31,7 @@
             <param name="s_lower_a"            value="90"/>
             <param name="v_lower_a"            value="20"/>
             <param name="h_upper_a"            value="30"/>
-            <param name="s_upper_a"            value="200"/>
+            <param name="s_upper_a"            value="220"/>
             <param name="v_upper_a"            value="200"/>
             <param name="test_mode"            value="$(arg test_mode)"/>  
             <param name="acc_on"               value="$(arg acc_on)"/>  
@@ -77,7 +77,7 @@
             <param name="s_lower_a"            value="90"/>
             <param name="v_lower_a"            value="20"/>
             <param name="h_upper_a"            value="30"/>
-            <param name="s_upper_a"            value="200"/>
+            <param name="s_upper_a"            value="220"/>
             <param name="v_upper_a"            value="200"/>
             <param name="test_mode"            value="$(arg test_mode)"/>  
             <param name="acc_on"               value="$(arg acc_on)"/> 
