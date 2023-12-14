@@ -560,7 +560,7 @@ class LaneOperationNode:
                         continue
                     
                     if self._veh._is_missing_line:
-                        _right_bound_thur = 220
+                        _right_bound_thur = 260
                     else:
                         _right_bound_thur = 200
                     
