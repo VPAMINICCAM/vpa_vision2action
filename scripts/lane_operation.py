@@ -546,6 +546,7 @@ class LaneOperationNode:
                             last_pt = pt
                 if len(cur_seg) > 10 and  len(cur_seg) < 30:
                     seg_dict[seg_index] = cur_seg
+                print(i,_l1)
                 if seg_index >= 0:
                     # more than one segment found
                     # skip
