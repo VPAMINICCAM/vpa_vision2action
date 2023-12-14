@@ -85,7 +85,7 @@
             <param name="robot_name"           value="$(arg robot_name)"/>
             <!-- mask publish banned in multi-robot -->
             </node>
-                <include file="$(find vpa_vision2action)/launch/amera.launch"/>
+                <include file="$(find vpa_vision2action)/launch/camera.launch"/>
                 <include file="$(find vpa_basecontrol)/launch/base_control.launch"/>
             <node name="republish_result" pkg="image_transport" type="republish" args="raw in:=result_image compressed out:=result_image" />
         </group>
