@@ -50,6 +50,7 @@ class OpStatus:
         self._start_flag            = True
         self._is_yellow_left        = True
         self._is_in_intersection    = False
+        self._is_missing_line       = False
         self._request_inter_timer   = False
         self._task_index            = 0
 
@@ -432,6 +433,9 @@ class LaneOperationNode:
                 self._search_front_car(mask_acc,height_half,rospy.get_time())
             if not _lane_center == 0:
                 self._send_twist_command(_lane_center,width_half)
+                self._veh._is_missing_line = False
+            else:
+                self._veh._is_missing_line = True
         # publish images for debug
         try:
             if self._publish_mask and not self._test_mode:
@@ -555,10 +559,15 @@ class LaneOperationNode:
                     if max_index == -1:
                         continue
                     
+                    if self._veh._is_missing_line:
+                        _right_bound_thur = 220
+                    else:
+                        _right_bound_thur = 200
+                    
                     try:
                         _res = int(np.mean(seg_dict[max_index]))
                         if self._veh._next_action == 0 and self._veh._is_in_intersection:
-                            if _res < 55 or _res > 200:
+                            if _res < 55 or _res > _right_bound_thur:
                                 continue
                             else:
                                 return _res
