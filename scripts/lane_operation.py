@@ -519,12 +519,12 @@ class LaneOperationNode:
             low_bound   = 0
             upper_bound = 75
         else:
-            low_bound = -15
-            upper_bound = 75            
+            low_bound = 0
+            upper_bound = 90            
         for i in range(low_bound,upper_bound,15):
             seg_index = 0
             _l1 = np.nonzero(_mask[_height_center + i,:])[0]
-            if len(_l1) > 10 and len(_l1) < 50:
+            if len(_l1) > 10 and len(_l1) < 80:
                 seg_dict  = {}
                 cur_seg   = []
                 last_pt   = 0
@@ -536,7 +536,7 @@ class LaneOperationNode:
                         if pt - last_pt < 5:
                             cur_seg.append(pt)
                             last_pt = pt
-                        elif len(cur_seg) > 10 and len(cur_seg) < 30:
+                        elif len(cur_seg) > 10 and len(cur_seg) < 50:
                             seg_dict[seg_index] = cur_seg
                             cur_seg = [pt]
                             last_pt = pt
@@ -544,8 +544,9 @@ class LaneOperationNode:
                         else:
                             cur_seg = [pt]
                             last_pt = pt
-                if len(cur_seg) > 10 and  len(cur_seg) < 30:
+                if len(cur_seg) > 10 and  len(cur_seg) < 50:
                     seg_dict[seg_index] = cur_seg
+                print(i,_l1)
                 if seg_index >= 0:
                     # more than one segment found
                     # skip
