@@ -3,6 +3,7 @@
     <param name="video_device" value="/dev/video0" />
     <param name="image_width" value="320" />
     <param name="image_height" value="240" />
+    <param name="camera_name" value="camera"/>
     <param name="pixel_format" value="yuyv" />
     <param name="camera_info_url" value="file://$(find vpa_vision2action)/config/csi72.yaml"/> 
     <param name="camera_frame_id" value="base_camera_link" />
