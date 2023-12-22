@@ -599,6 +599,7 @@ class LaneOperationNode:
         [v_x,w_z,_] = lf_pi_control(ref,center,0,0)
         if self._acc_mode:
             [v_factor,_] = acc_pi_control(self._veh_acc._acc_ref,self._veh_acc._acc_dis,0,0)
+            print('V_acc factor',v_factor,'dis',self._veh_acc._acc_dis)
         elif self._veh._is_in_intersection and self._veh._next_action == 2:
             pass
         else:
