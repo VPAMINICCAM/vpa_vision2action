@@ -4,13 +4,13 @@ def lf_pi_control(ref,sig,err_intergal,t_gap):
     # kp: the p gain for this controller
     # ki: the i gain for this controller
 
-    kp = 0.5
+    kp = 0.9
     ki = 0
-    vf = 0.2
-    vs = 0.1
+    vf = 0.3
+    vs = 0.2
     
     err = (ref - sig)/ref
-    print('err',err)
+    
     err_intergal += err * t_gap
 
     if abs(sig/ref) > 0.95 and abs(sig/ref) < 1.05:

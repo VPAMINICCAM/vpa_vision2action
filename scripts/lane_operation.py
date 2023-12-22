@@ -66,6 +66,8 @@ class OpStatus:
         
         self._has_ready = False
         self._request_task_timer = False
+        
+        self._searching_right = True
         # set default value
     
     def loadNextAction(self):
@@ -108,7 +110,7 @@ class OpStatus:
 class AccControl:
     def __init__(self) -> None:
         self._acc_dis = 0
-        self._acc_ref = 60
+        self._acc_ref = 80
         self._last_valid_time = 0
         self._last_dis   = 0
 
@@ -173,7 +175,7 @@ class LaneOperationNode:
         # guiding lines inside intersections - no dynamic reconfigure
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
         self._left_guide_hsv  = HSVSpace(160,140,180,80,230,160)
-        self._thur_guide_hsv  = HSVSpace(30,0,250,170,220,170)   
+        self._thur_guide_hsv  = HSVSpace(30,0,250,130,220,170)   
         self._exit_line_hsv   = HSVSpace(50,20,240,170,220,130)
         
         self._buffer_line_hsv = HSVSpace(160,120,160,10,240,200)
@@ -312,7 +314,7 @@ class LaneOperationNode:
                     else:
                         mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                         _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
-                    
+                        
                         if _dis2exitline > 25:
                             # entering the lane
                             self._veh._start_flag = False
@@ -321,8 +323,8 @@ class LaneOperationNode:
                     mask2 = self._lane_hsv_2.generate_mask(hsv_image)
 
                     mask_stop = self._stop_line_hsv.generate_mask(hsv_image)
-                    _line_center_1 = self._search_line(mask1,50,-20,height_half,10,0,width_half*2)
-                
+                    _line_center_1 = self._search_line(mask1,20,-80,height_half,10,0,width_half*2)
+                    #print('yellow',_line_center_1)
                     if self._veh._is_yellow_left and _line_center_1 == 0:
                         # The yellow is supposed to be on the left but we did not find it
                         _line_center_1 = 0
@@ -331,9 +333,10 @@ class LaneOperationNode:
                         _line_center_1 = width_half * 2
                 
                     if self._veh._is_yellow_left: # Search the white line, ignoring what is on the other side of the yellow line
-                        _line_center_2 = self._search_line(mask2,50,-20,height_half,10,_line_center_1,width_half*2)
+                        _line_center_2 = self._search_line(mask2,20,-80,height_half,10,_line_center_1,width_half*2)
                     else:
-                        _line_center_2 = self._search_line(mask2,50,-20,height_half,10,0,_line_center_1)
+                        _line_center_2 = self._search_line(mask2,20,-80,height_half,10,0,_line_center_1)
+                    #print('white',_line_center_2)
                     if _line_center_2 == 0:
                         # we find no white line
                         if self._veh._is_yellow_left:
@@ -347,7 +350,7 @@ class LaneOperationNode:
                     # check distance to stopline
                     _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
                     # print('stop line',_dis2stopline)
-                    if _dis2stopline > 30: # Tune me for distance
+                    if _dis2stopline > 50: # Tune me for distance
                         self._veh.enterIntersection()
                         # self._veh._pause_flag = True
                         if self._veh._next_action == -1:
@@ -377,7 +380,6 @@ class LaneOperationNode:
 
             else:
                 # we are in the intersection
-                # look for another target
                 if self._veh._next_action == -1:
                     # there is no other action
                     pass
@@ -404,8 +406,7 @@ class LaneOperationNode:
                 # checking if left intersection
                 mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                 _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
-
-                if _dis2exitline > 25:
+                if _dis2exitline > 40:
                     self._veh._is_in_intersection = False
                     if not self._veh._has_released:
                         _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,True)
@@ -435,6 +436,12 @@ class LaneOperationNode:
                 self._send_twist_command(_lane_center,width_half)
                 self._veh._is_missing_line = False
             else:
+                if self._veh._start_flag:
+                    self._handle_miss_lines_outinter()
+                elif self._veh._next_action == 2:
+                    self._handle_miss_rightturn_ininter()
+                elif self._veh._next_action == 1:
+                    self._handle_miss_leftturn_ininter()
                 self._veh._is_missing_line = True
         # publish images for debug
         try:
@@ -491,7 +498,7 @@ class LaneOperationNode:
     def _search_line(self,_mask,_upper_bias:int,_lower_bias:int,_height_center:int,_interval:int,_width_range_left:int,_width_range_right:int) -> int:
         for i in range(_lower_bias,_upper_bias,_interval):
             point = np.nonzero(_mask[_height_center+i,_width_range_left:_width_range_right])[0] + _width_range_left
-            if len(point) > 8 and len(point) < 45:
+            if len(point) > 16 and len(point) < 100:
                 _line_center = int(np.mean(point))
                 return _line_center
             else:
@@ -510,21 +517,22 @@ class LaneOperationNode:
         
     def _search_guide_line(self,_mask,_height_center:int):
         if self._veh._next_action == 1:
-            low_bound   = 15
-            upper_bound = 75
+            low_bound   = -30
+            upper_bound = 180
         elif self._veh._next_action == 0:
-            low_bound   = 15
-            upper_bound = 75
+            low_bound   = 30
+            upper_bound = 150
         elif self._veh._next_action == 2:
             low_bound   = 0
-            upper_bound = 75
+            upper_bound = 150
         else:
             low_bound = 0
-            upper_bound = 90            
-        for i in range(low_bound,upper_bound,15):
+            upper_bound = 180      
+        for i in range(low_bound,upper_bound,30):
             seg_index = 0
+            
             _l1 = np.nonzero(_mask[_height_center + i,:])[0]
-            if len(_l1) > 10 and len(_l1) < 80:
+            if len(_l1) > 20 and len(_l1) < 200:
                 seg_dict  = {}
                 cur_seg   = []
                 last_pt   = 0
@@ -536,7 +544,7 @@ class LaneOperationNode:
                         if pt - last_pt < 5:
                             cur_seg.append(pt)
                             last_pt = pt
-                        elif len(cur_seg) > 10 and len(cur_seg) < 60:
+                        elif len(cur_seg) > 10 and len(cur_seg) < 90:
                             seg_dict[seg_index] = cur_seg
                             cur_seg = [pt]
                             last_pt = pt
@@ -544,7 +552,7 @@ class LaneOperationNode:
                         else:
                             cur_seg = [pt]
                             last_pt = pt
-                if len(cur_seg) > 10 and  len(cur_seg) < 60:
+                if len(cur_seg) > 10 and  len(cur_seg) < 90:
                     seg_dict[seg_index] = cur_seg
                 if seg_index >= 0:
                     # more than one segment found
@@ -560,19 +568,19 @@ class LaneOperationNode:
                         continue
                     
                     if self._veh._is_missing_line:
-                        _right_bound_thur = 260
+                        _right_bound_thur = 520
                     else:
-                        _right_bound_thur = 200
+                        _right_bound_thur = 400
                     
                     try:
                         _res = int(np.mean(seg_dict[max_index]))
                         if self._veh._next_action == 0 and self._veh._is_in_intersection:
-                            if _res < 55 or _res > _right_bound_thur:
+                            if _res < 110 or _res > _right_bound_thur:
                                 continue
                             else:
                                 return _res
                         elif self._veh._next_action == 1 and self._veh._is_in_intersection:
-                            if _res > 220:
+                            if _res > 550 or _res < 50:
                                 continue
                             else:
                                 return _res
@@ -599,20 +607,23 @@ class LaneOperationNode:
             v_factor = 0
         _twist2publish.linear.x = v_x * v_factor 
         _twist2publish.angular.z = w_z * v_factor
+        if _twist2publish.angular.z < 0:
+            self._veh._searching_right = True
+        else:
+            self._veh._searching_right = False
         self.pub_cmd.publish(_twist2publish)
 
     def _search_front_car(self,_mask_acc,height_center:int,tick):
-        _bias = -40
-        _gap  = -10
-        t_tol = 1
+        _bias = -50
+        _gap  = -25
+        t_tol = 0.8
         p1 = np.nonzero(_mask_acc[height_center + _bias,:])[0]
         p2 = np.nonzero(_mask_acc[height_center + _bias + _gap,:])[0]
-
-        if len(p1) > 10 and len(p2) > 10:
+        if len(p1) > 50 and len(p2) > 50:
             # found a valid area
             c1 = int(np.mean(p1))
             c2 = int(np.mean(p2))
-            if abs(c1-c2)/c1 < 0.2 and c1 > 60 and c1 < 290:
+            if abs(c1-c2)/c1 < 0.2 and c1 > 30 and c1 < 580:
                 self._veh_acc._last_dis         = self._veh_acc._acc_dis
                 self._veh_acc._acc_dis          = len(np.nonzero(_mask_acc[:,c1])[0])
                 self._veh_acc._last_valid_time  = tick
@@ -651,16 +662,37 @@ class LaneOperationNode:
         center_index    = 0
         seg_len         = len(seg_dict)
         try:
-            center_value = abs(int(np.mean(seg_dict[0])) - 160)
+            center_value = abs(int(np.mean(seg_dict[0])) - 320)
         except:
             return -1
         for i in range(1,seg_len):
-            if abs(np.mean(seg_dict[i]) - 160) < center_value:
+            if abs(np.mean(seg_dict[i]) - 320) < center_value:
                 center_index = i
-                center_value = abs(np.mean(seg_dict[i]) - 160)
+                center_value = abs(np.mean(seg_dict[i]) - 320)
         
         return center_index
-        
+    
+    def _handle_miss_lines_outinter(self):
+        # handle miss lines perceptions outside the intersection
+        _twist2publish = Twist()
+        _twist2publish.linear.x  = 0.12
+        if self._veh._searching_right:
+            _twist2publish.angular.z = -0.5
+        else:
+            _twist2publish.angular.z = 0.5
+        self.pub_cmd.publish(_twist2publish)
+
+    def _handle_miss_rightturn_ininter(self):
+        _twist2publish = Twist()
+        _twist2publish.linear.x  = 0.08
+        _twist2publish.angular.z = -2
+        self.pub_cmd.publish(_twist2publish)
+    
+    def _handle_miss_leftturn_ininter(self):
+        _twist2publish = Twist()
+        _twist2publish.linear.x  = 0
+        _twist2publish.angular.z = 0
+        self.pub_cmd.publish(_twist2publish)
 
 if __name__ == '__main__':
     try:
