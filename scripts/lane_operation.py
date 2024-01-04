@@ -603,12 +603,12 @@ class LaneOperationNode:
 
     def _search_front_car(self,_mask_acc,height_center:int,tick):
         _bias = -40
-        _gap  = -10
+        _gap  = -20
         t_tol = 1
         p1 = np.nonzero(_mask_acc[height_center + _bias,:])[0]
         p2 = np.nonzero(_mask_acc[height_center + _bias + _gap,:])[0]
 
-        if len(p1) > 10 and len(p2) > 10:
+        if len(p1) > 15 and len(p2) > 15:
             # found a valid area
             c1 = int(np.mean(p1))
             c2 = int(np.mean(p2))
