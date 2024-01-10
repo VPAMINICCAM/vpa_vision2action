@@ -608,7 +608,7 @@ class LaneOperationNode:
         p1 = np.nonzero(_mask_acc[height_center + _bias,:])[0]
         p2 = np.nonzero(_mask_acc[height_center + _bias + _gap,:])[0]
 
-        if len(p1) > 15 and len(p2) > 15:
+        if len(p1) > 25 and len(p2) > 25:
             # found a valid area
             c1 = int(np.mean(p1))
             c2 = int(np.mean(p2))
