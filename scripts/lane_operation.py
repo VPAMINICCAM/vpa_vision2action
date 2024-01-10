@@ -108,7 +108,7 @@ class OpStatus:
 class AccControl:
     def __init__(self) -> None:
         self._acc_dis = 0
-        self._acc_ref = 40
+        self._acc_ref = 50
         self._last_valid_time = 0
         self._last_dis   = 0
 

@@ -4,7 +4,7 @@ def lf_pi_control(ref,sig,err_intergal,t_gap):
     # kp: the p gain for this controller
     # ki: the i gain for this controller
 
-    kp = 4
+    kp = 5
     ki = 0
     vf = 0.35
     vs = 0.35
