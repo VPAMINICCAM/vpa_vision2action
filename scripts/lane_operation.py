@@ -254,7 +254,7 @@ class LaneOperationNode:
                 self._veh.setNextAction()
                 self._veh._request_task_timer   = False
                 self._veh._pause_flag           = False
-                rospy.loginfo('Task receive in timer')
+                rospy.loginfo('%s: task received',self._robot_name)
 
     def _image_cb(self,data:Image):
         try:
@@ -300,7 +300,7 @@ class LaneOperationNode:
                         _dis2ready  = self._distance_2_line(mask1,height_half*2,height_half,width_half)
                         if _dis2ready > 25:
                             self._veh._has_ready = True
-                            rospy.loginfo('Arriving Ready line, Inquiring task')
+                            rospy.loginfo('%s: arrive ready line, inquiring task',self._robot_name)
                             resp = self._request_task_service(task_index=self._veh._task_index)
                             if len(resp) == 0:
                                 # not task assigned
@@ -308,7 +308,7 @@ class LaneOperationNode:
                                 self._veh._request_task_timer = True
                                 self._veh._pause_flag         = True
                             else:
-                                rospy.loginfo('Received Task at first trial')
+                                rospy.loginfo('%s: task received',self._robot_name)
                                 self._veh.loadTaskList(task_list=resp)
                                 self._veh.setNextAction()
                     else:
@@ -377,7 +377,7 @@ class LaneOperationNode:
                                         _text = 'right turn'
                                     else:
                                         _text = 'stop'
-                                    rospy.loginfo("%s :Entering Intersection %s, action is %s",self._robot_name,str(self._veh.this_node),_text)
+                                    rospy.loginfo("%s :entering Intersection %s, action is %s",self._robot_name,str(self._veh.this_node),_text)
 
             else:
                 # we are in the intersection
@@ -417,7 +417,7 @@ class LaneOperationNode:
                         if not self._veh._has_released:
                             _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,True)
                             self._veh._has_released = True
-                            rospy.loginfo('%s: Exiting Intersection %s',self._robot_name,str(self._veh.this_node))
+                            rospy.loginfo('%s: exiting Intersection %s',self._robot_name,str(self._veh.this_node))
                             self._veh.loadNextAction()
                             if self._veh._next_action == 0:
                                 _text = 'straight'
@@ -474,20 +474,20 @@ class LaneOperationNode:
         return res  
 
     def _request_task_init(self):
-        rospy.loginfo("Waiting for task server")
+        rospy.loginfo("%s: Waiting for task server",self._robot_name)
         rospy.wait_for_service("/AssignTask")
         self._task_proxy = rospy.ServiceProxy("/AssignTask",AssignTask)
-        rospy.loginfo("Task server online")
+        rospy.loginfo("%s:Task server online",self._robot_name)
     
     def _request_task_service(self,task_index) -> list:
         resp = self._task_proxy(self._robot_name,task_index)
         return resp.node_list
     
     def _request_inter_init(self):
-        rospy.loginfo("Waiting for intersection server")
+        rospy.loginfo("%s: Waiting for intersection server",self._robot_name)
         rospy.wait_for_service("/ManageInter")
         self._inter_proxy = rospy.ServiceProxy("/ManageInter",InterManage) 
-        rospy.loginfo('Intersection manager online')
+        rospy.loginfo('%s: Intersection manager online',self._robot_name)
 
     def _request_inter_service(self,_robot_name:str,_next_action:int,_cur_node:int,_last_node:int,_is_release:bool) -> bool:
         _resp = self._inter_proxy(_robot_name,_next_action,_cur_node,_last_node,_is_release)
