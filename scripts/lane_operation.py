@@ -598,7 +598,7 @@ class LaneOperationNode:
         if self._acc_mode:
             [v_factor,_] = acc_pi_control(self._veh_acc._acc_ref,self._veh_acc._acc_dis,0,0)
             if v_factor < 0.2:
-                rospy.loginfo('%s: paused by ACC',self._robot_name)
+                rospy.loginfo_once('%s: paused by ACC',self._robot_name)
         elif self._veh._is_in_intersection and self._veh._next_action == 2:
             pass
         else:
