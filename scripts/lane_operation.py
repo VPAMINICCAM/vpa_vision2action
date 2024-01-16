@@ -596,6 +596,8 @@ class LaneOperationNode:
         [v_x,w_z,_] = lf_pi_control(ref,center,0,0)
         if self._acc_mode:
             [v_factor,_] = acc_pi_control(self._veh_acc._acc_ref,self._veh_acc._acc_dis,0,0)
+            if v_factor < 0.2:
+                rospy.loginfo('%s: paused by ACC')
         elif self._veh._is_in_intersection and self._veh._next_action == 2:
             pass
         else:
@@ -609,7 +611,7 @@ class LaneOperationNode:
     def _search_front_car(self,_mask_acc,height_center:int,tick):
         _bias = -40
         _gap  = -20
-        t_tol = 1
+        t_tol = 0.5
         p1 = np.nonzero(_mask_acc[height_center + _bias,:])[0]
         p2 = np.nonzero(_mask_acc[height_center + _bias + _gap,:])[0]
 
