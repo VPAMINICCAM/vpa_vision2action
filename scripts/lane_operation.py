@@ -133,6 +133,8 @@ class LaneOperationNode:
         self.pub_cmd    = rospy.Publisher('cmd_vel',Twist,queue_size=1)
         
         self._bridge = CvBridge()
+        self.last_green = rospy.get_time()
+        self.last_red = rospy.get_time()
 
         self._lane_hsv_1    = HSVSpace(
             h_u=int(rospy.get_param('~h_upper_1',100)),
@@ -312,7 +314,7 @@ class LaneOperationNode:
                     else:
                         mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                         _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
-                    
+                        
                         if _dis2exitline > 25:
                             # entering the lane
                             self._veh._start_flag = False
@@ -348,32 +350,34 @@ class LaneOperationNode:
                     _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
                     # print('stop line',_dis2stopline)
                     if _dis2stopline > 30: # Tune me for distance
-                        self._veh.enterIntersection()
-                        # self._veh._pause_flag = True
-                        if self._veh._next_action == -1:
-                            # no action assigned for this intersection
-                            self._veh._pause_flag = True
-                            # ready for asking for more 
-                            # disable cmd_veh 
-                        elif not self._veh._request_inter_timer:
-                            # There is action to perform but must ask for permission
-                            _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
-                            if not _pass:
+                        if rospy.get_time() - self.last_green > 0.5:
+                            self.last_red = rospy.get_time()
+                            self._veh.enterIntersection()
+                            # self._veh._pause_flag = True
+                            if self._veh._next_action == -1:
+                                # no action assigned for this intersection
                                 self._veh._pause_flag = True
-                                self._veh._request_inter_timer = True
-                                # not approved for this request
-                                # stop the car and switch to timer, ask again later
-                            else:
-                                self._veh._has_released = False
-                                if self._veh._next_action == 0:
-                                    _text = 'go straight'
-                                elif self._veh._next_action == 1:
-                                    _text = 'left turn'
-                                elif self._veh._next_action == 2:
-                                    _text = 'right turn'
+                                # ready for asking for more 
+                                # disable cmd_veh 
+                            elif not self._veh._request_inter_timer:
+                                # There is action to perform but must ask for permission
+                                _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,False)
+                                if not _pass:
+                                    self._veh._pause_flag = True
+                                    self._veh._request_inter_timer = True
+                                    # not approved for this request
+                                    # stop the car and switch to timer, ask again later
                                 else:
-                                    _text = 'stop'
-                                rospy.loginfo("Entering Intersection %s, action is %s",str(self._veh.this_node),_text)
+                                    self._veh._has_released = False
+                                    if self._veh._next_action == 0:
+                                        _text = 'go straight'
+                                    elif self._veh._next_action == 1:
+                                        _text = 'left turn'
+                                    elif self._veh._next_action == 2:
+                                        _text = 'right turn'
+                                    else:
+                                        _text = 'stop'
+                                    rospy.loginfo("%s :Entering Intersection %s, action is %s",self._robot_name,str(self._veh.this_node),_text)
 
             else:
                 # we are in the intersection
@@ -404,28 +408,29 @@ class LaneOperationNode:
                 # checking if left intersection
                 mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                 _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
-
                 if _dis2exitline > 25:
                     self._veh._is_in_intersection = False
-                    if not self._veh._has_released:
-                        _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,True)
-                        self._veh._has_released = True
-                        rospy.loginfo('Exiting Intersection %s',str(self._veh.this_node))
-                        self._veh.loadNextAction()
-                        if self._veh._next_action == 0:
-                            _text = 'straight'
-                        elif self._veh._next_action == 1:
-                            _text = 'left'
-                        elif self._veh._next_action == 2:
-                            _text = 'right'
-                        else:
-                            _text = 'buffering'
-                            self._veh._start_flag = True
-                            self._veh._has_ready  = False
-                            self._veh._task_index += 1
-                            self._veh._node_pointer = 2
-                        rospy.loginfo('Next Action: %s',_text)
-                        print('__________')
+                    if rospy.get_time() - self.last_red < 0.5:
+                        rospy.loginfo('Error in switching')
+                    else:
+                        self.last_green = rospy.get_time()
+                        if not self._veh._has_released:
+                            _pass = self._request_inter_service(self._robot_name,self._veh._next_action,self._veh.this_node,self._veh.last_node,True)
+                            self._veh._has_released = True
+                            rospy.loginfo('%s: Exiting Intersection %s',self._robot_name,str(self._veh.this_node))
+                            self._veh.loadNextAction()
+                            if self._veh._next_action == 0:
+                                _text = 'straight'
+                            elif self._veh._next_action == 1:
+                                _text = 'left'
+                            elif self._veh._next_action == 2:
+                                _text = 'right'
+                            else:
+                                _text = 'buffering'
+                                self._veh._start_flag = True
+                                self._veh._has_ready  = False
+                                self._veh._task_index += 1
+                                self._veh._node_pointer = 2
 
             # in an intersection or not, the acc shall always work
             if self._acc_mode:
