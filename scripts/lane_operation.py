@@ -350,7 +350,7 @@ class LaneOperationNode:
                     _dis2stopline = self._distance_2_line(mask_stop,2*height_half,height_half,width_half)
                     # print('stop line',_dis2stopline)
                     if _dis2stopline > 30: # Tune me for distance
-                        if rospy.get_time() - self.last_green > 0.5:
+                        if rospy.get_time() - self.last_green > 0.2:
                             self.last_red = rospy.get_time()
                             self._veh.enterIntersection()
                             # self._veh._pause_flag = True
@@ -378,7 +378,8 @@ class LaneOperationNode:
                                     else:
                                         _text = 'stop'
                                     rospy.loginfo("%s :entering Intersection %s, action is %s",self._robot_name,str(self._veh.this_node),_text)
-
+                        else:
+                            rospy.loginfo('Error in switching, G->R')
             else:
                 # we are in the intersection
                 # look for another target
@@ -410,7 +411,7 @@ class LaneOperationNode:
                 _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
                 if _dis2exitline > 25:
                     self._veh._is_in_intersection = False
-                    if rospy.get_time() - self.last_red < 0.5:
+                    if rospy.get_time() - self.last_red < 0.2:
                         rospy.loginfo('Error in switching')
                     else:
                         self.last_green = rospy.get_time()
