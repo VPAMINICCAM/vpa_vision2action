@@ -15,83 +15,12 @@ from geometry_msgs.msg import Twist
 # Other files in this directory
 from local_map import local_mapper
 from lane_follow_controller import lf_pi_control
-from acc_controller import acc_pi_control
+from acc_controller import AccControl
 from hsv_space import HSVSpace
+from op_param import OpStatus
 # Dynamic reconfiguration
 from vpa_vision2action.cfg import color_hsvConfig
 from dynamic_reconfigure.server import Server
-
-
-class OpStatus:
-
-    def __init__(self) -> None:
-
-        self._pass_stopline         = False
-        self._pause_flag            = False
-        self._start_flag            = True
-        self._is_yellow_left        = True
-        self._is_in_intersection    = False
-        self._is_missing_line       = False
-        self._request_inter_timer   = False
-        self._task_index            = 0
-
-        self._leaving_intersection  = False
-        self._leaving_counter       = 0
-        self._has_released          = False
-
-        self._node_pointer      = 2 # point to the next node index
-
-        self._task_list = []
-        
-        self._next_action = -1
-        
-        self._has_ready = False
-        self._request_task_timer = False
-        # set default value
-    
-    def loadNextAction(self):
-        self._node_pointer += 1
-        if self._node_pointer == len(self._task_list):
-            # There is no more node to go
-            self._next_action = -1 # no more next action
-        else:
-            self._setNode(node_type='last',node_value=self.this_node)
-            self._setNode(node_type='this',node_value=self.next_node)
-            self._setNode(node_type='next',node_value=self._task_list[self._node_pointer])
-            self.setNextAction()
-
-    def enterIntersection(self):
-        self._is_in_intersection = True
-    
-    def loadTaskList(self,task_list:list):
-        if len(task_list) < 3:
-            rospy.loginfo('Invalid task list, no task loaded')
-        else:
-            self._setNode(node_type='last',node_value=task_list[0])
-            self._setNode(node_type='this',node_value=task_list[1])
-            self._setNode(node_type='next',node_value=task_list[2])
-            self._task_list = task_list
-    
-    def setNextAction(self) -> None:
-        self._next_action = local_mapper(self.last_node,self.this_node,self.next_node)
-
-    def _setNode(self,node_type:str,node_value:int):
-        
-        if node_type == 'last':
-            self.last_node = node_value
-        elif node_type == 'this':
-            self.this_node = node_value
-        elif node_type == 'next':
-            self.next_node = node_value
-        else:
-            rospy.loginfo("Invalid Node Type, No Value Set")
-
-class AccControl:
-    def __init__(self) -> None:
-        self._acc_dis = 0
-        self._acc_ref = 50
-        self._last_valid_time = 0
-        self._last_dis   = 0
 
 class LaneOperationNode:
 
@@ -111,11 +40,17 @@ class LaneOperationNode:
         self._robot_name = rospy.get_param('~robot_name','daisy')
 
         self.result_pub = rospy.Publisher("result_image", Image, queue_size=1)
+        # republish the result with indiator of operation for debugging
+
         self.pub_cmd    = rospy.Publisher('cmd_vel',Twist,queue_size=1)
+        # output twist information 
         
         self._bridge = CvBridge()
-        self.last_green = rospy.get_time()
-        self.last_red = rospy.get_time()
+
+        self.last_green     = rospy.get_time()
+        self.last_red       = rospy.get_time()
+        # last timing of a solid detection of stoplines(red) or exitlines(green)
+
 
         self._lane_hsv_1    = HSVSpace(
             h_u=int(rospy.get_param('~h_upper_1',100)),
@@ -157,8 +92,7 @@ class LaneOperationNode:
         self._right_guide_hsv = HSVSpace(140,100,120,80,250,200)
         self._left_guide_hsv  = HSVSpace(160,140,180,80,230,160)
         self._thur_guide_hsv  = HSVSpace(30,0,250,170,220,170)   
-        self._exit_line_hsv   = HSVSpace(50,20,240,170,220,130)
-        
+        self._exit_line_hsv   = HSVSpace(50,20,240,170,220,130) 
         self._buffer_line_hsv = HSVSpace(160,120,160,10,240,200)
 
         self._veh = OpStatus()
@@ -244,6 +178,7 @@ class LaneOperationNode:
             cv_image    = self._bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             print(e) 
+    
         cv_image = cv_image[int(cv_image.shape[0]/4):cv_image.shape[0],:] #removing the upper 25% of the image when processing
         hsv_image = cv2.cvtColor(cv_image,cv2.COLOR_RGB2HSV)
         
@@ -256,16 +191,16 @@ class LaneOperationNode:
             self._publish_image(self.result_pub,_test_image,False)
         else:
             if not self._veh._is_in_intersection:
-                # the vehicle is not in the intersection and not in the lane
-                # search for yellow and white line on both side
-                # search for stop line
 
-                # new status in the start buffer
+                # Either in starting-up buffer or in a lane
                 
                 if self._acc_mode:
                     mask_acc = self._acc_hsv.generate_mask(hsv_image)
                 
                 if self._veh._start_flag:
+
+                    # In starting-up buffer
+
                     mask_buffer     = self._buffer_line_hsv.generate_mask(hsv_image)
                     _lane_center    = self._search_guide_line(mask_buffer,height_half)
                     
@@ -277,6 +212,9 @@ class LaneOperationNode:
                 
                     _dis2ready = 0
                     if not self._veh._has_ready:
+                        
+                        # still in buffer line, approaching the first yellow line
+
                         mask1       = self._lane_hsv_1.generate_mask(hsv_image)
                         _dis2ready  = self._distance_2_line(mask1,height_half*2,height_half,width_half)
                         if _dis2ready > 25:
@@ -293,9 +231,9 @@ class LaneOperationNode:
                                 self._veh.loadTaskList(task_list=resp)
                                 self._veh.setNextAction()
                     else:
+                        # still in buffer line, approaching the first green line
                         mask_exit      = self._exit_line_hsv.generate_mask(hsv_image)
                         _dis2exitline  = self._distance_2_line(mask_exit,height_half*2,height_half,width_half)
-                        
                         if _dis2exitline > 25:
                             # entering the lane
                             self._veh._start_flag = False
@@ -364,10 +302,7 @@ class LaneOperationNode:
             else:
                 # we are in the intersection
                 # look for another target
-                if self._veh._next_action == -1:
-                    # there is no other action
-                    pass
-                elif self._veh._next_action == 0:
+                if self._veh._next_action == 0:
                     _mask = self._thur_guide_hsv.generate_mask(hsv_image)
                 elif self._veh._next_action == 1:
                     _mask = self._left_guide_hsv.generate_mask(hsv_image)
@@ -381,10 +316,7 @@ class LaneOperationNode:
                 else:
                     _lane_center = 0
                 
-                if _lane_center == 0:
-                    # no line found
-                    pass
-                else:
+                if not _lane_center == 0:
                     cv2.circle(cv_image, (_lane_center,height_half), 5, (255,255,0), 5)
                 
                 # checking if left intersection
@@ -393,7 +325,7 @@ class LaneOperationNode:
                 if _dis2exitline > 25:
                     self._veh._is_in_intersection = False
                     if rospy.get_time() - self.last_red < 0.2:
-                        rospy.loginfo('Error in switching')
+                        rospy.loginfo('%s,Error in switching, R -> G',self._robot_name)
                     else:
                         self.last_green = rospy.get_time()
                         if not self._veh._has_released:
@@ -487,12 +419,13 @@ class LaneOperationNode:
         return 0 # nothing found in the end
 
     def _distance_2_line(self,_mask,_upper_bound:int,_lower_bound:int,_width_center:int) -> int:
-        point = np.nonzero(_mask[_lower_bound:_upper_bound,_width_center])[0]
-        if len(point) == 0:
+        point_1 = np.nonzero(_mask[_lower_bound:_upper_bound,_width_center + 50])[0]
+        point_2 = np.nonzero(_mask[_lower_bound:_upper_bound,_width_center] - 50)[0]
+        if len(point_1) == 0 and len(point_2) == 0:
             # did not find the line
             return 0
-        elif len(point) > 5:
-            return int(np.mean(point))
+        elif len(point_1) > 5 or len(point_2) > 5:
+            return int((np.mean(point_1)+np.mean(point_2))/2)
         else:
             return 0
         
@@ -578,7 +511,7 @@ class LaneOperationNode:
         _twist2publish = Twist()
         [v_x,w_z,_] = lf_pi_control(ref,center,0,0)
         if self._acc_mode:
-            [v_factor,_] = acc_pi_control(self._veh_acc._acc_ref,self._veh_acc._acc_dis,0,0)
+            [v_factor,_] = self._veh_acc.acc_pi_control(self._veh_acc._acc_ref,self._veh_acc._acc_dis,0,0)
             if v_factor < 0.2:
                 rospy.loginfo_once('%s: paused by ACC',self._robot_name)
         elif self._veh._is_in_intersection and self._veh._next_action == 2:
